@@ -136,6 +136,14 @@ export function MapCanvas({
         const element = document.createElement('button');
         element.type = 'button';
         element.className = 'marker';
+
+        // The name rides above the dot, out of flow, so the dot itself stays
+        // centred on the coordinate. Written on every pass below, not here, so
+        // a rename shows without rebuilding the marker.
+        const label = document.createElement('span');
+        label.className = 'marker__label';
+        element.append(label);
+
         element.addEventListener('click', (event) => {
           event.stopPropagation();
           const current = placesByIdRef.current.get(id);
@@ -152,7 +160,11 @@ export function MapCanvas({
       const element = marker.getElement();
       element.style.setProperty('--marker-color', KIND_COLOR[place.kind]);
       element.setAttribute('aria-label', place.name);
+      element.title = place.name;
       element.classList.toggle('is-selected', place.id === selectedId);
+
+      const label = element.querySelector('.marker__label');
+      if (label && label.textContent !== place.name) label.textContent = place.name;
     }
   }, [map, places, visibleKinds, selectedId]);
 

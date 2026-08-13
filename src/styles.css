@@ -320,6 +320,7 @@ h3 {
 /* ---------------------------------------------------------------- markers */
 
 .marker {
+  position: relative;
   width: 18px;
   height: 18px;
   padding: 0;
@@ -334,6 +335,44 @@ h3 {
   width: 28px;
   height: 28px;
   box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.3), 0 4px 14px rgba(0, 0, 0, 0.45);
+  /* Lift the selected pin's name clear of any neighbour it overlaps. */
+  z-index: 2;
+}
+
+/* The name, sitting above its dot. A solid white pill rather than the glass
+   used elsewhere: this reads over the dark basemap and over satellite imagery,
+   which frosted glass does not. */
+.marker__label {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 160px;
+  padding: 3px 8px;
+  border-radius: 7px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* The dot stays the only hit target, so a label drifting over a neighbouring
+     pin cannot swallow the click meant for it. */
+  pointer-events: none;
+}
+
+.marker.is-selected .marker__label {
+  max-width: 220px;
+  font-weight: 600;
+  box-shadow: 0 0 0 2px var(--marker-color, var(--blue)), 0 2px 8px rgba(0, 0, 0, 0.28);
+}
+
+.marker--draft .marker__label {
+  display: none;
 }
 
 .marker--draft {
