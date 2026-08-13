@@ -1,0 +1,390 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { Session } from '@supabase/supabase-js';
+import { LoginScreen } from './LoginScreen';
+import { MapCanvas, type FocusRequest, type MapStyleName } from './MapCanvas';
+import { PlaceForm } from './PlaceForm';
+import { PlaceSheet } from './PlaceSheet';
+import {
+  createPlace,
+  cssVars,
+  deletePlace,
+  fetchPlaces,
+  KIND_COLOR,
+  KIND_PLURAL,
+  PLACE_KINDS,
+  supabase,
+  updatePlace,
+  type FieldPlace,
+  type PlaceDraft,
+  type PlaceKind,
+} from './supabase';
+
+/** idle → tap markers. placing → drop or drag the pin. form → fill in details. */
+type Mode = 'idle' | 'placing' | 'form';
+
+function blankDraft(lat: number, lng: number): PlaceDraft {
+  return { kind: 'farmer', name: '', remarks: '', latitude: lat, longitude: lng, crops: [] };
+}
+
+function draftFromPlace(place: FieldPlace): PlaceDraft {
+  return {
+    kind: place.kind,
+    name: place.name,
+    remarks: place.remarks ?? '',
+    latitude: place.latitude,
+    longitude: place.longitude,
+    crops: [...place.field_place_crops]
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map((crop) => ({ crop_name: crop.crop_name, avg_yield: crop.avg_yield ?? '' })),
+  };
+}
+
+export default function App() {
+  const [session, setSession] = useState<Session | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [isMember, setIsMember] = useState<boolean | null>(null);
+
+  const [places, setPlaces] = useState<FieldPlace[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const [visibleKinds, setVisibleKinds] = useState<Set<PlaceKind>>(new Set(PLACE_KINDS));
+  const [styleName, setStyleName] = useState<MapStyleName>('dark');
+  const [focus, setFocus] = useState<FocusRequest | null>(null);
+
+  const [mode, setMode] = useState<Mode>('idle');
+  // The id, not the row. Holding the object would leave the open sheet showing
+  // pre-edit values after a save refreshes the list.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<PlaceDraft | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  // --- session -------------------------------------------------------------
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setAuthReady(true);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => setSession(next));
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  // Membership is a row in `field_members`, not a role. Checking it up front
+  // means an unauthorised account gets a plain explanation instead of a map
+  // that silently returns nothing.
+  useEffect(() => {
+    if (!session) {
+      setIsMember(null);
+      return;
+    }
+    let cancelled = false;
+    supabase
+      .from('field_members')
+      .select('user_id')
+      .eq('user_id', session.user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled) setIsMember(data !== null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [session]);
+
+  const reload = useCallback(async () => {
+    try {
+      setPlaces(await fetchPlaces());
+      setLoadError(null);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : 'Could not load locations.');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isMember) void reload();
+  }, [isMember, reload]);
+
+  // --- derived -------------------------------------------------------------
+  // Resolved fresh from `places`, so an edit or a reload is reflected straight
+  // away — and a row deleted elsewhere closes the sheet instead of stranding it.
+  const selected = useMemo(
+    () => places.find((place) => place.id === selectedId) ?? null,
+    [places, selectedId]
+  );
+
+  // Autocomplete comes free from the list already in memory.
+  const cropSuggestions = useMemo(() => {
+    const names = new Set<string>();
+    for (const place of places) {
+      for (const crop of place.field_place_crops) names.add(crop.crop_name);
+    }
+    return [...names].sort((a, b) => a.localeCompare(b));
+  }, [places]);
+
+  const counts = useMemo(() => {
+    const tally = { farmer: 0, trader: 0, warehouse: 0 } as Record<PlaceKind, number>;
+    for (const place of places) tally[place.kind] += 1;
+    return tally;
+  }, [places]);
+
+  // --- actions -------------------------------------------------------------
+  const toggleKind = (kind: PlaceKind) => {
+    setVisibleKinds((current) => {
+      const next = new Set(current);
+      if (next.has(kind)) next.delete(kind);
+      else next.add(kind);
+      return next;
+    });
+  };
+
+  const positionDraft = useCallback((lat: number, lng: number) => {
+    setDraft((current) => (current ? { ...current, latitude: lat, longitude: lng } : blankDraft(lat, lng)));
+  }, []);
+
+  const handleLongPress = useCallback(
+    (lat: number, lng: number) => {
+      // A long press anywhere starts a new pin, even from idle — that is the
+      // fastest path when you are standing in a field with one hand free.
+      setSelectedId(null);
+      setNotice(null);
+      positionDraft(lat, lng);
+      setMode((current) => (current === 'form' ? 'form' : 'placing'));
+    },
+    [positionDraft]
+  );
+
+  const startPlacing = () => {
+    setSelectedId(null);
+    setEditingId(null);
+    setDraft(null);
+    setFormError(null);
+    setNotice(null);
+    setMode('placing');
+  };
+
+  const locateMe = () => {
+    if (!navigator.geolocation) {
+      setNotice('This browser has no location support.');
+      return;
+    }
+    setNotice('Finding you…');
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        setNotice(null);
+        setFocus({ lng: coords.longitude, lat: coords.latitude, zoom: 16, nonce: Date.now() });
+        if (mode === 'placing') positionDraft(coords.latitude, coords.longitude);
+      },
+      (error) => {
+        setNotice(
+          error.code === error.PERMISSION_DENIED
+            ? 'Location permission denied.'
+            : 'Could not get your location. GPS needs an HTTPS page.'
+        );
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  const openForm = () => {
+    setFormError(null);
+    setMode('form');
+  };
+
+  const editSelected = () => {
+    if (!selected) return;
+    setDraft(draftFromPlace(selected));
+    setEditingId(selected.id);
+    setSelectedId(null);
+    setFormError(null);
+    setMode('form');
+  };
+
+  const cancelEditing = () => {
+    setMode('idle');
+    setDraft(null);
+    setEditingId(null);
+    setFormError(null);
+  };
+
+  const save = async () => {
+    if (!draft) return;
+    if (!draft.name.trim()) {
+      setFormError('A name is required.');
+      return;
+    }
+    setBusy(true);
+    setFormError(null);
+    try {
+      if (editingId) await updatePlace(editingId, draft);
+      else await createPlace(draft);
+      await reload();
+      cancelEditing();
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : 'Could not save.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const removeSelected = async () => {
+    if (!selected) return;
+    if (!window.confirm(`Delete “${selected.name}”? This cannot be undone.`)) return;
+    setBusy(true);
+    try {
+      await deletePlace(selected.id);
+      await reload();
+      setSelectedId(null);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Could not delete.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // --- gates ---------------------------------------------------------------
+  if (!authReady) return <main className="login-band" />;
+  if (!session) return <LoginScreen />;
+
+  if (isMember === false) {
+    return (
+      <main className="login-band">
+        <div className="setup-card">
+          <h2>Not authorised</h2>
+          <p>
+            This account is not on the field map team. Ask an admin to add you to{' '}
+            <code>public.field_members</code>.
+          </p>
+          <button type="button" className="btn" onClick={() => supabase.auth.signOut()}>
+            Sign out
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  // On a wide screen the sheet becomes a fixed right-hand panel, so the
+  // floating controls have to step aside for it.
+  const panelOpen = mode === 'form' || (mode === 'idle' && selected !== null);
+
+  return (
+    <div className={panelOpen ? 'app has-panel' : 'app'}>
+      <MapCanvas
+        places={places}
+        visibleKinds={visibleKinds}
+        selectedId={selected?.id ?? null}
+        draftPoint={
+          mode !== 'idle' && draft ? { lat: draft.latitude, lng: draft.longitude } : null
+        }
+        styleName={styleName}
+        focus={focus}
+        onSelect={(place) => {
+          if (mode === 'form') return;
+          setMode('idle');
+          setSelectedId(place.id);
+        }}
+        onLongPress={handleLongPress}
+        onDraftMove={positionDraft}
+      />
+
+      <div className="top-bar">
+        <div className="top-right">
+          <button
+            type="button"
+            className="btn btn--tiny"
+            onClick={() => setStyleName(styleName === 'dark' ? 'satellite' : 'dark')}
+          >
+            {styleName === 'dark' ? 'Satellite' : 'Dark'}
+          </button>
+          <button type="button" className="btn btn--tiny" onClick={() => supabase.auth.signOut()}>
+            Sign out
+          </button>
+        </div>
+      </div>
+
+      {/* Its own scrolling strip rather than sharing the top bar: at these
+          proportions three labelled pills plus two buttons will not fit across
+          a phone without wrapping into a muddle. */}
+      <div className="filter-strip">
+        <div className="chip-row">
+          {PLACE_KINDS.map((kind) => (
+            <button
+              key={kind}
+              type="button"
+              className={`chip ${visibleKinds.has(kind) ? 'is-on' : ''}`}
+              style={cssVars({ '--chip-color': KIND_COLOR[kind] })}
+              onClick={() => toggleKind(kind)}
+            >
+              {KIND_PLURAL[kind]}
+              <span className="chip-count">{counts[kind]}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {(loadError || notice) && <div className="toast">{loadError ?? notice}</div>}
+
+      {mode === 'placing' && (
+        <div className="banner">
+          <p>
+            {draft
+              ? 'Drag the pin to fine-tune, then continue.'
+              : 'Long-press the map to drop a pin, or use your location.'}
+          </p>
+          <div className="banner-actions">
+            <button type="button" className="btn btn--ghost" onClick={cancelEditing}>
+              Cancel
+            </button>
+            <button type="button" className="btn" onClick={locateMe}>
+              Use my location
+            </button>
+            <button type="button" className="btn btn--primary" onClick={openForm} disabled={!draft}>
+              Continue
+            </button>
+          </div>
+        </div>
+      )}
+
+      {mode === 'idle' && (
+        <div className="fabs">
+          <button type="button" className="fab" onClick={locateMe} aria-label="Use my location">
+            ◎
+          </button>
+          <button
+            type="button"
+            className="fab fab--primary"
+            onClick={startPlacing}
+            aria-label="Add a location"
+          >
+            +
+          </button>
+        </div>
+      )}
+
+      {mode === 'idle' && selected && (
+        <PlaceSheet
+          place={selected}
+          onEdit={editSelected}
+          onDelete={removeSelected}
+          onClose={() => setSelectedId(null)}
+          busy={busy}
+        />
+      )}
+
+      {mode === 'form' && draft && (
+        <PlaceForm
+          draft={draft}
+          isEditing={editingId !== null}
+          busy={busy}
+          error={formError}
+          cropSuggestions={cropSuggestions}
+          onChange={setDraft}
+          onSave={save}
+          onCancel={cancelEditing}
+          onReposition={() => setMode('placing')}
+        />
+      )}
+    </div>
+  );
+}

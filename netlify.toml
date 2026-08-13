@@ -1,0 +1,14 @@
+# Deploy target: set `fieldmap` as the base directory in the Netlify UI, then
+# add VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY and VITE_MAPBOX_TOKEN under
+# Site settings -> Environment variables. Vite inlines them at build time, so a
+# change to any of them needs a redeploy, not just a reload.
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# Single page app: every path has to fall through to index.html.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

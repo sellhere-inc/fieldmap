@@ -1,0 +1,767 @@
+/* Sell Here — Field Map
+ *
+ * Same design language as the marketing site (sellhere.vercel.app): Apple-style
+ * light surfaces, Poppins, 980px pill controls, 18px card radius, and generous
+ * breathing room. Every token below is copied verbatim from the `:root` block
+ * in `website/index.html`, so the two stay in step.
+ *
+ * The basemap itself stays dark — that was a deliberate product decision — so
+ * this is light chrome floating over a dark map, the way Apple Maps does it.
+ *
+ * Deliberately no transitions or keyframes: AGENTS.md item 13 asks for
+ * animations off. Hover states change instantly instead of easing.
+ */
+
+:root {
+  --bg: #ffffff;
+  --bg-soft: #f5f5f7;
+  --ink: #1d1d1f;
+  --ink-2: #6e6e73;
+  --ink-3: #86868b;
+  --blue: #0071e3;
+  --blue-hover: #0077ed;
+  --green: #248a3d;
+  --green-bright: #30d158;
+  --red: #ff453a;
+  --dark: #000000;
+  --dark-card: #161617;
+  --radius: 18px;
+
+  /* Frosted panel, lifted straight from the site's fixed nav. */
+  --glass: rgba(251, 251, 253, 0.8);
+  --hairline: rgba(0, 0, 0, 0.08);
+
+  color-scheme: light;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: 'Poppins', 'Anek Malayalam', -apple-system, BlinkMacSystemFont,
+    'Helvetica Neue', Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  /* The map owns all gestures; stop iOS bouncing the page behind it. */
+  overscroll-behavior: none;
+}
+
+::selection {
+  background: #0071e344;
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+/* ---------------------------------------------------------------- layout */
+
+.app {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+}
+
+.map,
+.map-setup {
+  position: absolute;
+  inset: 0;
+}
+
+.map-setup {
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  background: linear-gradient(180deg, #fbfbfd 0%, #f5f5f7 100%);
+}
+
+/* Chrome floats over the map, clear of the notch and the home indicator. */
+.top-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  display: flex;
+  justify-content: flex-end;
+  padding: calc(env(safe-area-inset-top) + 16px) 16px 0;
+  pointer-events: none;
+}
+
+.top-bar > * {
+  pointer-events: auto;
+}
+
+.top-right {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* Scrolls sideways so a long list of kinds never wraps or truncates. The
+   negative-margin trick lets pills bleed to the screen edge while keeping a
+   comfortable inset at rest. */
+.filter-strip {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 74px);
+  left: 0;
+  right: 0;
+  z-index: 3;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.filter-strip::-webkit-scrollbar {
+  display: none;
+}
+
+/* Generic: also used for the Type selector inside the form, where it wraps. */
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* In the strip it must stay on one line so the scroll works. */
+.filter-strip .chip-row {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  padding: 4px 16px 12px;
+}
+
+/* ---------------------------------------------------------------- controls */
+
+/* The site's `.pill`: white, hairline border, soft lift, 980px radius. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 980px;
+  background: #fff;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.05);
+  color: var(--ink-3);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+}
+
+.chip.is-on {
+  color: var(--ink);
+}
+
+/* The dot doubles as the map's colour key. */
+.chip::before {
+  content: '';
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--chip-color, var(--blue));
+  opacity: 0.28;
+}
+
+.chip.is-on::before {
+  opacity: 1;
+}
+
+.chip-count {
+  color: var(--ink-3);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 26px;
+  border: none;
+  border-radius: 980px;
+  background: var(--bg-soft);
+  color: var(--ink);
+  font: inherit;
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+}
+
+.btn:hover {
+  background: #ebebed;
+}
+
+.btn--primary {
+  background: var(--blue);
+  color: #fff;
+}
+
+.btn--primary:hover {
+  background: var(--blue-hover);
+}
+
+.btn--ghost {
+  background: transparent;
+  color: var(--blue);
+}
+
+.btn--ghost:hover {
+  background: rgba(0, 113, 227, 0.08);
+}
+
+.btn--danger {
+  background: transparent;
+  color: var(--red);
+}
+
+.btn--danger:hover {
+  background: rgba(255, 69, 58, 0.09);
+}
+
+/* Frosted pill for the controls sitting directly on the map. */
+.btn--tiny {
+  padding: 9px 18px;
+  font-size: 15px;
+  font-weight: 500;
+  background: var(--glass);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  border: 1px solid var(--hairline);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.05);
+}
+
+.btn--tiny:hover {
+  background: rgba(251, 251, 253, 0.95);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.icon-btn {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: var(--bg-soft);
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.icon-btn:hover {
+  background: #e8e8ea;
+  color: var(--ink);
+}
+
+.fabs {
+  position: absolute;
+  right: 20px;
+  bottom: calc(env(safe-area-inset-bottom) + 28px);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.fab {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border: 1px solid var(--hairline);
+  border-radius: 50%;
+  background: #fff;
+  color: var(--ink);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+}
+
+.fab:hover {
+  background: var(--bg-soft);
+}
+
+.fab--primary {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+  font-size: 28px;
+  font-weight: 300;
+}
+
+.fab--primary:hover {
+  background: var(--blue-hover);
+}
+
+/* ---------------------------------------------------------------- markers */
+
+.marker {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 2.5px solid #fff;
+  border-radius: 50%;
+  background: var(--marker-color, var(--blue));
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+}
+
+.marker.is-selected {
+  width: 28px;
+  height: 28px;
+  box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.3), 0 4px 14px rgba(0, 0, 0, 0.45);
+}
+
+.marker--draft {
+  width: 28px;
+  height: 28px;
+  background: #fff;
+  border-color: var(--blue);
+  border-width: 6px;
+  cursor: grab;
+}
+
+/* ---------------------------------------------------------------- banner */
+
+.banner {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: calc(env(safe-area-inset-bottom) + 20px);
+  z-index: 4;
+  padding: 24px 24px 20px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  background: var(--glass);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.14);
+}
+
+.banner p {
+  margin-bottom: 18px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--ink-2);
+  letter-spacing: -0.01em;
+}
+
+.banner-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.banner-actions .btn {
+  flex: 1;
+  padding: 12px 10px;
+  font-size: 15px;
+}
+
+.toast {
+  position: absolute;
+  /* Clears the filter strip that sits above it. */
+  top: calc(env(safe-area-inset-top) + 134px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  max-width: 88%;
+  padding: 11px 20px;
+  border: 1px solid var(--hairline);
+  border-radius: 980px;
+  background: var(--glass);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+  font-size: 14px;
+  letter-spacing: -0.01em;
+}
+
+/* ---------------------------------------------------------------- sheet */
+
+/* A bottom sheet on a phone, a right-hand panel once there is room. */
+.sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  max-height: 84%;
+  border-radius: var(--radius) var(--radius) 0 0;
+  background: var(--bg);
+  box-shadow: 0 -12px 44px rgba(0, 0, 0, 0.18);
+}
+
+.sheet-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 30px 28px 6px;
+}
+
+.sheet-head h2 {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.018em;
+  line-height: 1.15;
+  /* Names must never be clipped — they are the only identifier a pin has. */
+  overflow-wrap: anywhere;
+}
+
+.sheet-body {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 28px 8px;
+}
+
+.sheet-actions {
+  display: flex;
+  gap: 10px;
+  padding: 20px 28px calc(env(safe-area-inset-bottom) + 24px);
+  border-top: 1px solid var(--hairline);
+}
+
+.sheet-actions .btn {
+  flex: 1;
+}
+
+.badge {
+  display: inline-block;
+  margin-bottom: 10px;
+  padding: 5px 14px;
+  border-radius: 980px;
+  background: var(--badge-color, var(--blue));
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.field {
+  display: block;
+  margin-top: 30px;
+}
+
+.field h3 {
+  margin-bottom: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.crop-list {
+  list-style: none;
+  border-radius: var(--radius);
+  background: var(--bg-soft);
+  padding: 6px 20px;
+}
+
+.crop-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  font-size: 16px;
+}
+
+.crop-list li:last-child {
+  border-bottom: none;
+}
+
+.crop-name {
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+.crop-yield {
+  flex-shrink: 0;
+  color: var(--ink-2);
+  font-size: 15px;
+  text-align: right;
+}
+
+.remarks {
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--ink-2);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.muted {
+  color: var(--ink-2);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.small {
+  margin-top: 30px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.link {
+  display: inline-block;
+  margin-top: 10px;
+  color: var(--blue);
+  font-size: 15px;
+  text-decoration: none;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.error {
+  margin-top: 18px;
+  color: var(--red);
+  font-size: 15px;
+}
+
+/* ---------------------------------------------------------------- inputs */
+
+input,
+textarea {
+  display: block;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  background: var(--bg-soft);
+  color: var(--ink);
+  font-family: inherit;
+  /* 16px+ keeps iOS Safari from zooming the page when a field is focused. */
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+textarea {
+  resize: vertical;
+  line-height: 1.6;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--ink-3);
+}
+
+input:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.16);
+  background: #fff;
+}
+
+.crop-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 10px;
+  margin-bottom: 12px;
+  align-items: center;
+}
+
+.crop-row input {
+  font-size: 16px;
+  padding: 12px 14px;
+}
+
+/* ---------------------------------------------------------------- login */
+
+.login-band {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 34px;
+  min-height: 100%;
+  padding: 80px 22px;
+  background: linear-gradient(180deg, #fbfbfd 0%, #f5f5f7 100%);
+}
+
+.login-band > * {
+  width: 100%;
+  max-width: 420px;
+  margin-inline: auto;
+}
+
+.login-band h1 {
+  font-size: clamp(32px, 7vw, 44px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  background: linear-gradient(180deg, #1d1d1f 60%, #4a4a4e);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.subtitle {
+  margin-top: 14px;
+  color: var(--ink-2);
+  font-size: 17px;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+}
+
+.login-card {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 34px 30px;
+  border-radius: var(--radius);
+  background: #fff;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
+}
+
+.login-card label {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.login-card .btn {
+  margin-top: 6px;
+}
+
+.setup-card {
+  max-width: 420px;
+  padding: 34px 30px;
+  border-radius: var(--radius);
+  background: #fff;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
+}
+
+.setup-card h2 {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.018em;
+}
+
+.setup-card p {
+  margin-top: 14px;
+  color: var(--ink-2);
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.setup-card .btn {
+  margin-top: 24px;
+}
+
+.setup-card a {
+  color: var(--blue);
+  text-decoration: none;
+}
+
+.setup-card a:hover {
+  text-decoration: underline;
+}
+
+code {
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: var(--bg-soft);
+  font-size: 0.9em;
+}
+
+/* ---------------------------------------------------------------- desktop */
+
+@media (min-width: 820px) {
+  .sheet {
+    left: auto;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 440px;
+    max-height: none;
+    border-radius: 0;
+    border-left: 1px solid var(--hairline);
+    box-shadow: -12px 0 44px rgba(0, 0, 0, 0.1);
+  }
+
+  .sheet-head {
+    padding-top: 40px;
+  }
+
+  .sheet-body,
+  .sheet-head,
+  .sheet-actions {
+    padding-left: 34px;
+    padding-right: 34px;
+  }
+
+  /* The panel occupies the top-right, so the map controls move to the left
+     where they can never be covered by it. */
+  .top-bar {
+    justify-content: flex-start;
+    padding-left: 20px;
+  }
+
+  .filter-strip {
+    top: calc(env(safe-area-inset-top) + 78px);
+  }
+
+  .has-panel .filter-strip {
+    right: 440px;
+  }
+
+  .filter-strip .chip-row {
+    padding-left: 20px;
+  }
+
+  .toast {
+    left: 20px;
+    transform: none;
+  }
+
+  .banner {
+    left: auto;
+    right: 20px;
+    width: 420px;
+  }
+
+  /* Step the floating buttons clear of the open panel. */
+  .has-panel .fabs {
+    right: calc(440px + 20px);
+  }
+
+  .has-panel .banner {
+    right: calc(440px + 20px);
+  }
+}
