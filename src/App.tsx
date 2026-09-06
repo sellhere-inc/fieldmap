@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { LoginScreen } from './LoginScreen';
 import { MapCanvas, type FocusRequest, type MapStyleName } from './MapCanvas';
@@ -6,6 +6,7 @@ import { PlaceForm } from './PlaceForm';
 import { PlaceSheet } from './PlaceSheet';
 import { PlaceList } from './PlaceList';
 import { fieldErrorMessage } from './errors';
+import { requestLocation, locationErrorMessage, type UserLocation } from './location';
 import {
   createPlace,
   cssVars,
@@ -55,8 +56,13 @@ export default function App() {
   const [visibleKinds, setVisibleKinds] = useState<Set<PlaceKind>>(new Set(PLACE_KINDS));
   const [styleName, setStyleName] = useState<MapStyleName>('dark');
   const [focus, setFocus] = useState<FocusRequest | null>(null);
+  const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
+  const [locating, setLocating] = useState(false);
+  const locationPending = useRef(false);
 
   const [mode, setMode] = useState<Mode>('idle');
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
   // The id, not the row. Holding the object would leave the open sheet showing
   // pre-edit values after a save refreshes the list.
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -187,27 +193,38 @@ export default function App() {
     setMode('placing');
   };
 
-  const locateMe = () => {
+  const locateMe = async () => {
+    if (locationPending.current) return;
+    if (!window.isSecureContext) {
+      setNotice('Open this site over HTTPS to use your location.');
+      return;
+    }
     if (!navigator.geolocation) {
       setNotice('This browser has no location support.');
       return;
     }
+    locationPending.current = true;
+    setLocating(true);
+    const requestedMode = mode;
     setNotice('Finding you…');
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => {
-        setNotice(null);
-        setFocus({ lng: coords.longitude, lat: coords.latitude, zoom: 16, nonce: Date.now() });
-        if (mode === 'placing') positionDraft(coords.latitude, coords.longitude);
-      },
-      (error) => {
-        setNotice(
-          error.code === error.PERMISSION_DENIED
-            ? 'Location permission denied.'
-            : 'Could not get your location. GPS needs an HTTPS page.'
-        );
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
+    try {
+      const location = await requestLocation(navigator.geolocation);
+      setUserLocation(location);
+      setNotice(`Location found · accuracy about ${Math.max(1, Math.round(location.accuracy))} m.`);
+      if (modeRef.current === requestedMode) {
+        setSelectedId(null);
+        setFocus((current) => ({ ...location,
+          zoom: location.accuracy > 1000 ? 12 : location.accuracy > 100 ? 14 : 16,
+          nonce: (current?.nonce ?? 0) + 1,
+        }));
+        if (requestedMode === 'placing') positionDraft(location.lat, location.lng);
+      }
+    } catch (error) {
+      setNotice(locationErrorMessage(error));
+    } finally {
+      locationPending.current = false;
+      setLocating(false);
+    }
   };
 
   const openForm = () => {
@@ -303,6 +320,7 @@ export default function App() {
         }
         styleName={styleName}
         focus={focus}
+        userLocation={userLocation}
         onSelect={(place) => {
           if (mode === 'form' || listOpen) return;
           setMode('idle');
@@ -357,7 +375,7 @@ export default function App() {
         </div>
       </div>
 
-      {(loadError || notice) && <div className="toast">{loadError ?? notice}</div>}
+      {(loadError || notice) && <div className="toast" role="status">{notice ?? loadError}</div>}
 
       {mode === 'placing' && (
         <div className="banner">
@@ -370,8 +388,8 @@ export default function App() {
             <button type="button" className="btn btn--ghost" onClick={cancelEditing}>
               Cancel
             </button>
-            <button type="button" className="btn" onClick={locateMe}>
-              Use my location
+            <button type="button" className="btn" onClick={locateMe} disabled={locating}>
+              {locating ? 'Finding you…' : 'Use my location'}
             </button>
             <button type="button" className="btn btn--primary" onClick={openForm} disabled={!draft}>
               Continue
@@ -382,8 +400,9 @@ export default function App() {
 
       {mode === 'idle' && !listOpen && (
         <div className="fabs">
-          <button type="button" className="fab" onClick={locateMe} aria-label="Use my location">
-            ◎
+          <button type="button" className="fab" onClick={locateMe} disabled={locating}
+            aria-label={locating ? 'Finding your location' : 'Use my location'} aria-busy={locating}>
+            {locating ? '…' : '◎'}
           </button>
           <button
             type="button"

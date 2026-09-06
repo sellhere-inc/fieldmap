@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { placeColor, KIND_LABEL, VISIT_LABEL, MAPBOX_TOKEN, type FieldPlace, type PlaceKind } from './supabase';
 import { useLongPress } from './useLongPress';
+import type { UserLocation } from './location';
 
 export const MAP_STYLES = {
   dark: 'mapbox://styles/mapbox/dark-v11',
@@ -29,6 +30,7 @@ interface MapCanvasProps {
   draftPoint: { lat: number; lng: number } | null;
   styleName: MapStyleName;
   focus: FocusRequest | null;
+  userLocation: UserLocation | null;
   onSelect: (place: FieldPlace) => void;
   onLongPress: (lat: number, lng: number) => void;
   onDraftMove: (lat: number, lng: number) => void;
@@ -41,6 +43,7 @@ export function MapCanvas({
   draftPoint,
   styleName,
   focus,
+  userLocation,
   onSelect,
   onLongPress,
   onDraftMove,
@@ -59,6 +62,7 @@ export function MapCanvas({
 
   const markersRef = useRef(new Map<string, mapboxgl.Marker>());
   const draftMarkerRef = useRef<mapboxgl.Marker | null>(null);
+  const userMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const hasFitRef = useRef(false);
 
   // A marker is created once and then reused, so its click handler must not
@@ -93,6 +97,7 @@ export function MapCanvas({
       setMap(null);
       markersRef.current.clear();
       draftMarkerRef.current = null;
+      userMarkerRef.current = null;
     };
   }, []);
 
@@ -172,13 +177,39 @@ export function MapCanvas({
 
   // --- frame the points on first load --------------------------------------
   useEffect(() => {
-    if (!map || hasFitRef.current || places.length === 0) return;
+    if (!map || hasFitRef.current || places.length === 0 || focus) return;
     hasFitRef.current = true;
 
     const bounds = new mapboxgl.LngLatBounds();
     for (const place of places) bounds.extend([place.longitude, place.latitude]);
     map.fitBounds(bounds, { padding: 72, maxZoom: 14, duration: 0 });
-  }, [map, places]);
+  }, [map, places, focus]);
+
+  // Separate from contact markers so kind filters never hide your position.
+  useEffect(() => {
+    if (!map) return;
+    if (!userLocation) {
+      userMarkerRef.current?.remove();
+      userMarkerRef.current = null;
+      return;
+    }
+    if (!userMarkerRef.current) {
+      const element = document.createElement('div');
+      element.className = 'user-location';
+      element.setAttribute('role', 'img');
+      const label = document.createElement('span');
+      label.className = 'user-location__label';
+      label.textContent = 'You are here';
+      element.append(label);
+      userMarkerRef.current = new mapboxgl.Marker({ element })
+        .setLngLat([userLocation.lng, userLocation.lat]).addTo(map);
+    }
+    const marker = userMarkerRef.current;
+    marker.setLngLat([userLocation.lng, userLocation.lat]);
+    const description = `You are here · accuracy about ${Math.max(1, Math.round(userLocation.accuracy))} m`;
+    marker.getElement().setAttribute('aria-label', description);
+    marker.getElement().title = description;
+  }, [map, userLocation]);
 
   // --- the pin being placed ------------------------------------------------
   useEffect(() => {
@@ -209,7 +240,9 @@ export function MapCanvas({
   // --- imperative jumps (locate me, focusing a saved point) ----------------
   useEffect(() => {
     if (!map || !focus) return;
-    map.jumpTo({ center: [focus.lng, focus.lat], zoom: focus.zoom ?? map.getZoom() });
+    hasFitRef.current = true;
+    map.jumpTo({ center: [focus.lng, focus.lat], zoom: focus.zoom ?? map.getZoom(),
+      padding: { top: 0, bottom: 0, left: 0, right: 0 } });
   }, [map, focus?.nonce]);
 
   if (!MAPBOX_TOKEN) {
