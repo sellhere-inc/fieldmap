@@ -1,6 +1,6 @@
 # Sell Here — Field Map
 
-A standalone map for logging where our contacts are: **farmers, buyers/traders and warehouses**.
+A standalone map for logging where our contacts are: **farmers, buyers and warehouses**.
 Points are plotted on a dark Mapbox map with a satellite toggle; tapping one opens its
 details.
 
@@ -14,7 +14,7 @@ isolation is guaranteed.
 | Kind | Fields |
 | --- | --- |
 | Farmer | name, crops cultivated (each with an optional average yield), remarks |
-| Buyer / trader | name, remarks |
+| Buyer | name, remarks |
 | Warehouse | name, remarks |
 
 Crop names are free text with autocomplete drawn from crops already entered — the
@@ -24,15 +24,16 @@ because real answers look like "~200 nuts per tree" or "2-3 quintal in season".
 
 Every kind also has a **Visit status**: **Met** or **Planned — yet to meet**.
 Planned contacts keep their own remarks and can have crops recorded if known.
-Existing contacts default to Met. Buyers use the existing `trader` database kind.
+Existing contacts default to Met.
 
 | Kind | Met pin | Planned pin |
 | --- | --- | --- |
-| Farmer | Green | Purple |
-| Buyer / trader | Blue | Pink |
-| Warehouse | Orange | Cyan |
+| Farmer | Green | Light green |
+| Buyer | Blue | Light blue |
+| Warehouse | Orange | Light orange |
 
 Planned pins, their labels, and expanded details have dotted outlines.
+The top filters show only each type's darker met color.
 
 ## Setup
 
@@ -83,14 +84,14 @@ seeing the map.
   **Use my location**. Drag the pin to fine-tune, then **Continue** and fill in the details.
   A long press works from anywhere, so you can skip the `+` entirely.
 - **Plan a visit** — add a point as above, choose **Planned — yet to meet**, select
-  Farmer, Buyer / trader, or Warehouse, and add a name and remarks. Save to keep the plan.
+  Farmer, Buyer, or Warehouse, and add a name and remarks. Save to keep the plan.
 - **After meeting** — open the point, tap **Edit**, switch Visit status to **Met**, and
   save. The pin and outlines update while the name, remarks, location and crops remain.
-- **List** — tap List to open Field notes. Remarks lead each card, with the contact's
-  name and tags below. Search by name, filter by contact/visit tags, or sort by tag,
+- **Search** — tap the map’s search bar to open Field notes with search focused. Remarks lead each card, with the contact's
+  name and tags below. Search names and remarks, filter by contact/visit tags, or sort by tag,
   planned first, or name. Tap a card for details; Back to list preserves the search
   and scroll position. On phones the list and its details fill the screen as a page;
-  desktop uses a sidebar. Back to map returns to the map, and browser Back works
+  desktop uses a left sidebar. Back to map returns to the map, and browser Back works
   between map and list. The list uses existing records and needs no extra migration.
 - **Filter** — the chips top-left toggle each kind on and off; the number is how many exist.
 - **Satellite** — the button top-right swaps the basemap.
@@ -158,4 +159,3 @@ src/
 ```
 
 There is no router and no state library, matching `admin/`.
-

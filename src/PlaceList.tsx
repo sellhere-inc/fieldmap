@@ -12,7 +12,8 @@ export function selectPlaces(
 ): FieldPlace[] {
   const search = query.trim().normalize('NFC').toLocaleLowerCase();
   return places.filter((place) =>
-    place.name.normalize('NFC').toLocaleLowerCase().includes(search)
+    [place.name, place.remarks ?? ''].some((text) =>
+      text.normalize('NFC').toLocaleLowerCase().includes(search))
     && (kind === 'all' || place.kind === kind)
     && (status === 'all' || place.visit_status === status)
   ).sort((a, b) => {
@@ -54,21 +55,21 @@ export function PlaceList({ places, hidden, loading, error, onSelect, onRetry }:
       <div className="sheet-body">
         <div className="list-controls">
           <label>
-            Search by name
-            <input type="search" value={query} onChange={(event) => setQuery(event.target.value)}
-              placeholder="Person or business name" />
+            Search names and remarks
+            <input type="search" autoFocus value={query} onChange={(event) => setQuery(event.target.value)}
+              placeholder="Name or remarks text" />
           </label>
           <div className="list-filter-row">
             <label>
               Contact tag
-              <select value={kind} onChange={(event) => setKind(event.target.value as PlaceKind | 'all')}>
+              <select aria-label="Contact tag" value={kind} onChange={(event) => setKind(event.target.value as PlaceKind | 'all')}>
                 <option value="all">All types</option>
                 {PLACE_KINDS.map((value) => <option key={value} value={value}>{KIND_LABEL[value]}</option>)}
               </select>
             </label>
             <label>
               Visit tag
-              <select value={status} onChange={(event) => setStatus(event.target.value as VisitStatus | 'all')}>
+              <select aria-label="Visit tag" value={status} onChange={(event) => setStatus(event.target.value as VisitStatus | 'all')}>
                 <option value="all">All visits</option>
                 <option value="planned">Yet to meet</option>
                 <option value="met">Met</option>
@@ -77,7 +78,7 @@ export function PlaceList({ places, hidden, loading, error, onSelect, onRetry }:
           </div>
           <label>
             Sort by
-            <select value={sort} onChange={(event) => setSort(event.target.value as ListSort)}>
+            <select aria-label="Sort by" value={sort} onChange={(event) => setSort(event.target.value as ListSort)}>
               <option value="tag">Contact tag</option>
               <option value="status">Visit tag — planned first</option>
               <option value="name">Name — A to Z</option>
@@ -90,7 +91,7 @@ export function PlaceList({ places, hidden, loading, error, onSelect, onRetry }:
           {loading ? 'Loading contacts…' : `${results.length} ${results.length === 1 ? 'contact' : 'contacts'}`}
         </p>
         {!loading && !error && results.length === 0 && (
-          <p className="muted">{places.length ? 'No matching contacts. Try another name or tag.' : 'No contacts yet. Add a location on the map to start.'}</p>
+          <p className="muted">{places.length ? 'No matching contacts. Try another name, remark, or tag.' : 'No contacts yet. Add a location on the map to start.'}</p>
         )}
         <ul className="notes-list">
           {results.map((place) => (

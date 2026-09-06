@@ -113,7 +113,7 @@ export function PlaceForm({
           />
         </label>
 
-        {/* Crops are a farmer-only concern — traders and warehouses record a
+        {/* Crops are a farmer-only concern — buyers and warehouses record a
             name and remarks only. */}
         {draft.kind === 'farmer' && (
           <div className="field">

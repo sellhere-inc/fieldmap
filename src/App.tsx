@@ -5,6 +5,7 @@ import { MapCanvas, type FocusRequest, type MapStyleName } from './MapCanvas';
 import { PlaceForm } from './PlaceForm';
 import { PlaceSheet } from './PlaceSheet';
 import { PlaceList } from './PlaceList';
+import { fieldErrorMessage } from './errors';
 import {
   createPlace,
   cssVars,
@@ -13,7 +14,6 @@ import {
   KIND_COLOR,
   KIND_PLURAL,
   PLACE_KINDS,
-  PLANNED_KIND_COLOR,
   supabase,
   updatePlace,
   type FieldPlace,
@@ -118,7 +118,7 @@ export default function App() {
       setPlaces(await fetchPlaces());
       setLoadError(null);
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : 'Could not load locations.');
+      setLoadError(fieldErrorMessage(error, 'Could not load locations.'));
     } finally {
       setPlacesLoading(false);
     }
@@ -245,7 +245,7 @@ export default function App() {
       await reload();
       cancelEditing();
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : 'Could not save.');
+      setFormError(fieldErrorMessage(error, 'Could not save.'));
     } finally {
       setBusy(false);
     }
@@ -260,7 +260,7 @@ export default function App() {
       await reload();
       setSelectedId(null);
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'Could not delete.');
+      setNotice(fieldErrorMessage(error, 'Could not delete.'));
     } finally {
       setBusy(false);
     }
@@ -292,7 +292,7 @@ export default function App() {
   const panelOpen = (listOpen && mode !== 'placing') || mode === 'form' || (mode === 'idle' && selected !== null);
 
   return (
-    <div className={`app ${panelOpen ? 'has-panel' : ''} ${listOpen && mode !== 'placing' ? 'has-list' : ''}`}>
+    <div className={`app ${panelOpen ? 'has-panel' : ''} ${listOpen && mode !== 'placing' ? 'has-list' : ''} ${mode === 'idle' && !listOpen ? 'has-search' : ''}`}>
       <div className="map-workspace">
       <MapCanvas
         places={places}
@@ -314,7 +314,6 @@ export default function App() {
 
       <div className="top-bar">
         <div className="top-right">
-          {mode === 'idle' && <a href="#contacts" className="btn btn--tiny" aria-label="Open contact list">List</a>}
           <button
             type="button"
             className="btn btn--tiny"
@@ -326,6 +325,15 @@ export default function App() {
             Sign out
           </button>
         </div>
+        {mode === 'idle' && !listOpen && (
+          <a href="#contacts" className="map-search" aria-label="Search names and remarks">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <circle cx="10.5" cy="10.5" r="6.5" />
+              <path d="m16 16 5 5" />
+            </svg>
+            <span>Search names and remarks</span>
+          </a>
+        )}
       </div>
 
       {/* Its own scrolling strip rather than sharing the top bar: at these
@@ -338,16 +346,14 @@ export default function App() {
               key={kind}
               type="button"
               className={`chip ${visibleKinds.has(kind) ? 'is-on' : ''}`}
-              style={cssVars({ '--chip-color': KIND_COLOR[kind], '--planned-color': PLANNED_KIND_COLOR[kind] })}
+              style={cssVars({ '--chip-color': KIND_COLOR[kind] })}
               aria-pressed={visibleKinds.has(kind)}
               onClick={() => toggleKind(kind)}
             >
-              <span className="chip-planned-dot" aria-hidden="true" />
               {KIND_PLURAL[kind]}
               <span className="chip-count">{counts[kind]}</span>
             </button>
           ))}
-          <span className="map-legend">Solid: met · Dotted: yet to meet</span>
         </div>
       </div>
 

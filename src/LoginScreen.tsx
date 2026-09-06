@@ -21,7 +21,7 @@ export function LoginScreen() {
     <main className="login-band">
       <div>
         <h1>Sell Here — Field Map</h1>
-        <p className="subtitle">Where our farmers, traders and warehouses are.</p>
+        <p className="subtitle">Where our farmers, buyers and warehouses are.</p>
       </div>
       <form onSubmit={submit} className="login-card">
         <label>

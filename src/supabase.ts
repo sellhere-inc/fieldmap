@@ -26,13 +26,13 @@ export const PLACE_KINDS: PlaceKind[] = ['farmer', 'trader', 'warehouse'];
 
 export const KIND_LABEL: Record<PlaceKind, string> = {
   farmer: 'Farmer',
-  trader: 'Buyer / trader',
+  trader: 'Buyer',
   warehouse: 'Warehouse',
 };
 
 export const KIND_PLURAL: Record<PlaceKind, string> = {
   farmer: 'Farmers',
-  trader: 'Buyers / traders',
+  trader: 'Buyers',
   warehouse: 'Warehouses',
 };
 
@@ -53,11 +53,11 @@ export const VISIT_LABEL: Record<VisitStatus, string> = {
   planned: 'Planned — yet to meet',
 };
 
-/** Planned contacts have their own palette as well as dotted outlines. */
+/** Unmet contacts use lighter shades of the same type colors, with dotted outlines. */
 export const PLANNED_KIND_COLOR: Record<PlaceKind, string> = {
-  farmer: '#a855f7',
-  trader: '#ef476f',
-  warehouse: '#06b6d4',
+  farmer: '#a4edb5',
+  trader: '#99c6f4',
+  warehouse: '#ffd99d',
 };
 
 export function placeColor(place: { kind: PlaceKind; visit_status: VisitStatus }): string {
