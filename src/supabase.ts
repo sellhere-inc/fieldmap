@@ -26,13 +26,13 @@ export const PLACE_KINDS: PlaceKind[] = ['farmer', 'trader', 'warehouse'];
 
 export const KIND_LABEL: Record<PlaceKind, string> = {
   farmer: 'Farmer',
-  trader: 'Trader',
+  trader: 'Buyer / trader',
   warehouse: 'Warehouse',
 };
 
 export const KIND_PLURAL: Record<PlaceKind, string> = {
   farmer: 'Farmers',
-  trader: 'Traders',
+  trader: 'Buyers / traders',
   warehouse: 'Warehouses',
 };
 
@@ -45,6 +45,24 @@ export const KIND_COLOR: Record<PlaceKind, string> = {
   trader: '#0071e3',
   warehouse: '#ff9f0a',
 };
+
+export type VisitStatus = 'met' | 'planned';
+
+export const VISIT_LABEL: Record<VisitStatus, string> = {
+  met: 'Met',
+  planned: 'Planned — yet to meet',
+};
+
+/** Planned contacts have their own palette as well as dotted outlines. */
+export const PLANNED_KIND_COLOR: Record<PlaceKind, string> = {
+  farmer: '#a855f7',
+  trader: '#ef476f',
+  warehouse: '#06b6d4',
+};
+
+export function placeColor(place: { kind: PlaceKind; visit_status: VisitStatus }): string {
+  return (place.visit_status === 'planned' ? PLANNED_KIND_COLOR : KIND_COLOR)[place.kind];
+}
 
 /**
  * Pass CSS custom properties in a `style` prop. React forwards them fine at
@@ -66,6 +84,7 @@ export interface FieldPlaceCrop {
 export interface FieldPlace {
   id: string;
   kind: PlaceKind;
+  visit_status: VisitStatus;
   name: string;
   remarks: string | null;
   latitude: number;
@@ -85,6 +104,7 @@ export interface CropDraft {
 
 export interface PlaceDraft {
   kind: PlaceKind;
+  visit_status: VisitStatus;
   name: string;
   remarks: string;
   latitude: number;
@@ -104,7 +124,7 @@ export async function fetchPlaces(): Promise<FieldPlace[]> {
     .order('created_at', { ascending: false });
 
   if (error) throw error;
-  return (data ?? []) as FieldPlace[];
+  return (data ?? []).map((place) => ({ ...place, visit_status: place.visit_status ?? 'met' })) as FieldPlace[];
 }
 
 /** Crop rows are only meaningful for farmers, and blank rows are dropped. */
@@ -140,6 +160,7 @@ export async function createPlace(draft: PlaceDraft): Promise<void> {
     .from('field_places')
     .insert({
       kind: draft.kind,
+      visit_status: draft.visit_status,
       name: draft.name.trim(),
       remarks: draft.remarks.trim() || null,
       latitude: draft.latitude,
@@ -157,6 +178,7 @@ export async function updatePlace(id: string, draft: PlaceDraft): Promise<void> 
     .from('field_places')
     .update({
       kind: draft.kind,
+      visit_status: draft.visit_status,
       name: draft.name.trim(),
       remarks: draft.remarks.trim() || null,
       latitude: draft.latitude,

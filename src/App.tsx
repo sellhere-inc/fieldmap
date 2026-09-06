@@ -4,6 +4,7 @@ import { LoginScreen } from './LoginScreen';
 import { MapCanvas, type FocusRequest, type MapStyleName } from './MapCanvas';
 import { PlaceForm } from './PlaceForm';
 import { PlaceSheet } from './PlaceSheet';
+import { PlaceList } from './PlaceList';
 import {
   createPlace,
   cssVars,
@@ -12,6 +13,7 @@ import {
   KIND_COLOR,
   KIND_PLURAL,
   PLACE_KINDS,
+  PLANNED_KIND_COLOR,
   supabase,
   updatePlace,
   type FieldPlace,
@@ -23,12 +25,13 @@ import {
 type Mode = 'idle' | 'placing' | 'form';
 
 function blankDraft(lat: number, lng: number): PlaceDraft {
-  return { kind: 'farmer', name: '', remarks: '', latitude: lat, longitude: lng, crops: [] };
+  return { kind: 'farmer', visit_status: 'met', name: '', remarks: '', latitude: lat, longitude: lng, crops: [] };
 }
 
 function draftFromPlace(place: FieldPlace): PlaceDraft {
   return {
     kind: place.kind,
+    visit_status: place.visit_status,
     name: place.name,
     remarks: place.remarks ?? '',
     latitude: place.latitude,
@@ -45,6 +48,8 @@ export default function App() {
   const [isMember, setIsMember] = useState<boolean | null>(null);
 
   const [places, setPlaces] = useState<FieldPlace[]>([]);
+  const [placesLoading, setPlacesLoading] = useState(true);
+  const [listOpen, setListOpen] = useState(window.location.hash === '#contacts');
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [visibleKinds, setVisibleKinds] = useState<Set<PlaceKind>>(new Set(PLACE_KINDS));
@@ -60,6 +65,20 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  // Hash navigation gives the phone list its own page and browser Back support.
+  useEffect(() => {
+    const navigate = () => {
+      setListOpen(window.location.hash === '#contacts');
+      setSelectedId(null);
+      setMode('idle');
+      setDraft(null);
+      setEditingId(null);
+      setFormError(null);
+    };
+    window.addEventListener('hashchange', navigate);
+    return () => window.removeEventListener('hashchange', navigate);
+  }, []);
 
   // --- session -------------------------------------------------------------
   useEffect(() => {
@@ -94,11 +113,14 @@ export default function App() {
   }, [session]);
 
   const reload = useCallback(async () => {
+    setPlacesLoading(true);
     try {
       setPlaces(await fetchPlaces());
       setLoadError(null);
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : 'Could not load locations.');
+    } finally {
+      setPlacesLoading(false);
     }
   }, []);
 
@@ -145,6 +167,7 @@ export default function App() {
 
   const handleLongPress = useCallback(
     (lat: number, lng: number) => {
+      if (listOpen && mode !== 'placing') return;
       // A long press anywhere starts a new pin, even from idle — that is the
       // fastest path when you are standing in a field with one hand free.
       setSelectedId(null);
@@ -152,7 +175,7 @@ export default function App() {
       positionDraft(lat, lng);
       setMode((current) => (current === 'form' ? 'form' : 'placing'));
     },
-    [positionDraft]
+    [positionDraft, listOpen, mode]
   );
 
   const startPlacing = () => {
@@ -209,7 +232,7 @@ export default function App() {
   };
 
   const save = async () => {
-    if (!draft) return;
+    if (!draft || busy) return;
     if (!draft.name.trim()) {
       setFormError('A name is required.');
       return;
@@ -266,10 +289,11 @@ export default function App() {
 
   // On a wide screen the sheet becomes a fixed right-hand panel, so the
   // floating controls have to step aside for it.
-  const panelOpen = mode === 'form' || (mode === 'idle' && selected !== null);
+  const panelOpen = (listOpen && mode !== 'placing') || mode === 'form' || (mode === 'idle' && selected !== null);
 
   return (
-    <div className={panelOpen ? 'app has-panel' : 'app'}>
+    <div className={`app ${panelOpen ? 'has-panel' : ''} ${listOpen && mode !== 'placing' ? 'has-list' : ''}`}>
+      <div className="map-workspace">
       <MapCanvas
         places={places}
         visibleKinds={visibleKinds}
@@ -280,7 +304,7 @@ export default function App() {
         styleName={styleName}
         focus={focus}
         onSelect={(place) => {
-          if (mode === 'form') return;
+          if (mode === 'form' || listOpen) return;
           setMode('idle');
           setSelectedId(place.id);
         }}
@@ -290,6 +314,7 @@ export default function App() {
 
       <div className="top-bar">
         <div className="top-right">
+          {mode === 'idle' && <a href="#contacts" className="btn btn--tiny" aria-label="Open contact list">List</a>}
           <button
             type="button"
             className="btn btn--tiny"
@@ -313,13 +338,16 @@ export default function App() {
               key={kind}
               type="button"
               className={`chip ${visibleKinds.has(kind) ? 'is-on' : ''}`}
-              style={cssVars({ '--chip-color': KIND_COLOR[kind] })}
+              style={cssVars({ '--chip-color': KIND_COLOR[kind], '--planned-color': PLANNED_KIND_COLOR[kind] })}
+              aria-pressed={visibleKinds.has(kind)}
               onClick={() => toggleKind(kind)}
             >
+              <span className="chip-planned-dot" aria-hidden="true" />
               {KIND_PLURAL[kind]}
               <span className="chip-count">{counts[kind]}</span>
             </button>
           ))}
+          <span className="map-legend">Solid: met · Dotted: yet to meet</span>
         </div>
       </div>
 
@@ -346,7 +374,7 @@ export default function App() {
         </div>
       )}
 
-      {mode === 'idle' && (
+      {mode === 'idle' && !listOpen && (
         <div className="fabs">
           <button type="button" className="fab" onClick={locateMe} aria-label="Use my location">
             ◎
@@ -362,12 +390,23 @@ export default function App() {
         </div>
       )}
 
+      </div>
+
+      {listOpen && (
+        <PlaceList places={places} hidden={mode !== 'idle' || selected !== null}
+          loading={placesLoading} error={loadError}
+          onRetry={() => void reload()} onSelect={(place) => setSelectedId(place.id)} />
+      )}
+
+      {listOpen && notice && <div className="list-notice" role="status">{notice}</div>}
+
       {mode === 'idle' && selected && (
         <PlaceSheet
           place={selected}
           onEdit={editSelected}
           onDelete={removeSelected}
           onClose={() => setSelectedId(null)}
+          closeLabel={listOpen ? 'Back to list' : undefined}
           busy={busy}
         />
       )}

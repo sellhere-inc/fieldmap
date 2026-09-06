@@ -1,6 +1,8 @@
 import {
   cssVars,
-  KIND_COLOR,
+  placeColor,
+  VISIT_LABEL,
+  type VisitStatus,
   KIND_LABEL,
   PLACE_KINDS,
   type PlaceDraft,
@@ -50,7 +52,11 @@ export function PlaceForm({
   };
 
   return (
-    <form className="sheet" onSubmit={submit}>
+    <form
+      className={`sheet ${draft.visit_status === 'planned' ? 'sheet--planned' : ''}`}
+      style={cssVars({ '--place-color': placeColor(draft) })}
+      onSubmit={submit}
+    >
       <header className="sheet-head">
         <h2>{isEditing ? 'Edit location' : 'New location'}</h2>
         <button type="button" className="icon-btn" onClick={onCancel} aria-label="Cancel">
@@ -60,14 +66,34 @@ export function PlaceForm({
 
       <div className="sheet-body">
         <div className="field">
+          <h3>Visit status</h3>
+          <div className="chip-row" role="group" aria-label="Visit status">
+            {(['met', 'planned'] as VisitStatus[]).map((status) => (
+              <button
+                key={status}
+                type="button"
+                className={`chip ${status === 'planned' ? 'chip--planned' : ''} ${draft.visit_status === status ? 'is-on' : ''}`}
+                style={cssVars({ '--chip-color': placeColor({ ...draft, visit_status: status }) })}
+                aria-pressed={draft.visit_status === status}
+                disabled={busy}
+                onClick={() => set('visit_status', status)}
+              >
+                {VISIT_LABEL[status]}
+              </button>
+            ))}
+          </div>
+          <p className="muted visit-help">Plan a visit now; change to Met after you meet them.</p>
+        </div>
+        <div className="field">
           <h3>Type</h3>
           <div className="chip-row">
             {PLACE_KINDS.map((kind: PlaceKind) => (
               <button
                 key={kind}
                 type="button"
-                className={`chip ${draft.kind === kind ? 'is-on' : ''}`}
-                style={cssVars({ '--chip-color': KIND_COLOR[kind] })}
+                className={`chip ${draft.visit_status === 'planned' ? 'chip--planned' : ''} ${draft.kind === kind ? 'is-on' : ''}`}
+                aria-pressed={draft.kind === kind}
+                style={cssVars({ '--chip-color': placeColor({ ...draft, kind }) })}
                 onClick={() => set('kind', kind)}
               >
                 {KIND_LABEL[kind]}
@@ -136,7 +162,9 @@ export function PlaceForm({
             value={draft.remarks}
             onChange={(e) => set('remarks', e.target.value)}
             rows={5}
-            placeholder="Anything worth remembering about this place."
+            placeholder={draft.visit_status === 'planned'
+              ? 'Visit plans, contact details, questions to ask…'
+              : 'Anything worth remembering about this place.'}
           />
         </label>
 

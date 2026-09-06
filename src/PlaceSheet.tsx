@@ -1,4 +1,4 @@
-import { cssVars, KIND_COLOR, KIND_LABEL, type FieldPlace } from './supabase';
+import { cssVars, placeColor, VISIT_LABEL, KIND_LABEL, type FieldPlace } from './supabase';
 
 interface PlaceSheetProps {
   place: FieldPlace;
@@ -6,6 +6,7 @@ interface PlaceSheetProps {
   onDelete: () => void;
   onClose: () => void;
   busy: boolean;
+  closeLabel?: string;
 }
 
 function formatWhen(iso: string): string {
@@ -16,21 +17,28 @@ function formatWhen(iso: string): string {
   });
 }
 
-export function PlaceSheet({ place, onEdit, onDelete, onClose, busy }: PlaceSheetProps) {
+export function PlaceSheet({ place, onEdit, onDelete, onClose, busy, closeLabel = 'Close' }: PlaceSheetProps) {
   const crops = [...place.field_place_crops].sort((a, b) => a.sort_order - b.sort_order);
   const coords = `${place.latitude.toFixed(6)}, ${place.longitude.toFixed(6)}`;
 
   return (
-    <section className="sheet" aria-label={place.name}>
+    <section
+      className={`sheet ${place.visit_status === 'planned' ? 'sheet--planned' : ''}`}
+      style={cssVars({ '--place-color': placeColor(place) })}
+      aria-label={place.name}
+    >
       <header className="sheet-head">
         <div>
-          <span className="badge" style={cssVars({ '--badge-color': KIND_COLOR[place.kind] })}>
+          <span className="badge" style={cssVars({ '--badge-color': placeColor(place) })}>
             {KIND_LABEL[place.kind]}
           </span>
           <h2>{place.name}</h2>
+          <p className={`visit-status ${place.visit_status === 'planned' ? 'visit-status--planned' : ''}`}>
+            {VISIT_LABEL[place.visit_status]}
+          </p>
         </div>
-        <button type="button" className="icon-btn" onClick={onClose} aria-label="Close">
-          ✕
+        <button type="button" className={closeLabel === 'Close' ? 'icon-btn' : 'btn btn--ghost'} onClick={onClose} aria-label={closeLabel}>
+          {closeLabel === 'Close' ? '✕' : closeLabel}
         </button>
       </header>
 

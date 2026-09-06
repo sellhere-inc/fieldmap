@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
-import { KIND_COLOR, MAPBOX_TOKEN, type FieldPlace, type PlaceKind } from './supabase';
+import { placeColor, KIND_LABEL, VISIT_LABEL, MAPBOX_TOKEN, type FieldPlace, type PlaceKind } from './supabase';
 import { useLongPress } from './useLongPress';
 
 export const MAP_STYLES = {
@@ -158,9 +158,11 @@ export function MapCanvas({
       }
 
       const element = marker.getElement();
-      element.style.setProperty('--marker-color', KIND_COLOR[place.kind]);
-      element.setAttribute('aria-label', place.name);
-      element.title = place.name;
+      element.style.setProperty('--marker-color', placeColor(place));
+      const description = `${place.name} · ${KIND_LABEL[place.kind]} · ${VISIT_LABEL[place.visit_status]}`;
+      element.setAttribute('aria-label', description);
+      element.title = description;
+      element.classList.toggle('marker--planned', place.visit_status === 'planned');
       element.classList.toggle('is-selected', place.id === selectedId);
 
       const label = element.querySelector('.marker__label');

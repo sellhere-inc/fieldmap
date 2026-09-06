@@ -384,6 +384,46 @@ h3 {
   cursor: grab;
 }
 
+.marker--planned {
+  border-style: dotted;
+}
+
+.marker--planned .marker__label {
+  border: 2px dotted var(--marker-color);
+}
+
+.marker--planned.is-selected {
+  outline: 3px dotted var(--marker-color);
+  outline-offset: 4px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+}
+
+.marker--planned.is-selected .marker__label {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+}
+
+.chip--planned {
+  border: 2px dotted var(--chip-color, var(--blue));
+}
+
+.visit-help {
+  margin-top: 12px;
+  font-size: 14px;
+}
+
+.visit-status {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 5px 10px;
+  font-size: 13px;
+  border: 2px solid var(--place-color);
+  border-radius: 8px;
+}
+
+.visit-status--planned {
+  border-style: dotted;
+}
+
 /* ---------------------------------------------------------------- banner */
 
 .banner {
@@ -802,5 +842,206 @@ code {
 
   .has-panel .banner {
     right: calc(440px + 20px);
+  }
+}
+
+/* Inset keeps the entire dotted outline visible on edge-to-edge mobile and desktop panels. */
+.sheet.sheet--planned {
+  outline: 3px dotted var(--place-color);
+  outline-offset: -5px;
+}
+
+.chip-planned-dot {
+  width: 11px;
+  height: 11px;
+  flex-shrink: 0;
+  border: 2px dotted var(--planned-color);
+  border-radius: 50%;
+  background: var(--planned-color);
+}
+
+.map-legend {
+  align-self: center;
+  white-space: nowrap;
+  background: white;
+  color: var(--ink-2);
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+/* Contact notes: a sidebar on desktop, a separate full-height page on phones. */
+.map-workspace {
+  position: absolute;
+  inset: 0;
+}
+
+.contact-list[hidden] {
+  display: none;
+}
+
+.contact-list .sheet-head {
+  flex-shrink: 0;
+  padding-bottom: 18px;
+}
+
+.contact-list .sheet-head .btn,
+.has-list .sheet-head .btn {
+  flex-shrink: 0;
+  padding: 8px 0 8px 12px;
+  font-size: 14px;
+}
+
+.contact-list .sheet-body {
+  min-height: 0;
+  padding-bottom: calc(env(safe-area-inset-bottom) + 28px);
+}
+
+.list-controls {
+  display: grid;
+  gap: 14px;
+}
+
+.list-controls label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+
+.list-controls select {
+  width: 100%;
+  min-width: 0;
+  padding: 12px 8px;
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  background: var(--bg-soft);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+}
+
+.list-filter-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.list-count {
+  margin: 20px 0 14px;
+}
+
+.notes-list {
+  list-style: none;
+  display: grid;
+  gap: 16px;
+}
+
+.note-card {
+  display: block;
+  width: 100%;
+  padding: 20px;
+  border: 2px solid var(--place-color);
+  border-radius: 14px;
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.note-card--planned {
+  border-style: dotted;
+}
+
+.note-card:hover {
+  background: var(--bg-soft);
+}
+
+.note-card:focus-visible {
+  outline: 3px solid var(--blue);
+  outline-offset: 3px;
+}
+
+.note-remarks {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 18px;
+  line-height: 1.6;
+  font-weight: 500;
+}
+
+.note-person {
+  border-top: 1px solid var(--hairline);
+  padding-top: 14px;
+  margin-top: 18px;
+}
+
+.note-name {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+
+.note-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.note-tag {
+  padding: 4px 8px;
+  background: var(--bg-soft);
+  border-radius: 8px;
+  font-size: 11px;
+}
+
+.note-open {
+  display: block;
+  margin-top: 16px;
+  color: var(--blue);
+  font-size: 13px;
+}
+
+.list-notice {
+  position: absolute;
+  right: 16px;
+  bottom: calc(env(safe-area-inset-bottom) + 16px);
+  z-index: 8;
+  max-width: min(400px, calc(100% - 32px));
+  padding: 12px 18px;
+  background: var(--bg-soft);
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+}
+
+@media (max-width: 819px) {
+  .has-list .map-workspace {
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  .has-list .sheet {
+    inset: 0;
+    width: 100%;
+    max-height: none;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .has-list .sheet-head {
+    padding-top: calc(env(safe-area-inset-top) + 22px);
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .has-list .sheet-body {
+    padding-left: 20px;
+    padding-right: 20px;
   }
 }

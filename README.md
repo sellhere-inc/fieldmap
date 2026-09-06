@@ -1,6 +1,6 @@
 # Sell Here — Field Map
 
-A standalone map for logging where our contacts are: **farmers, traders and warehouses**.
+A standalone map for logging where our contacts are: **farmers, buyers/traders and warehouses**.
 Points are plotted on a dark Mapbox map with a satellite toggle; tapping one opens its
 details.
 
@@ -14,13 +14,25 @@ isolation is guaranteed.
 | Kind | Fields |
 | --- | --- |
 | Farmer | name, crops cultivated (each with an optional average yield), remarks |
-| Trader | name, remarks |
+| Buyer / trader | name, remarks |
 | Warehouse | name, remarks |
 
 Crop names are free text with autocomplete drawn from crops already entered — the
 catalogue in `public.crops` is deliberately not referenced, so this app stays independent
 and can record things the catalogue does not carry. Average yield is free text too,
 because real answers look like "~200 nuts per tree" or "2-3 quintal in season".
+
+Every kind also has a **Visit status**: **Met** or **Planned — yet to meet**.
+Planned contacts keep their own remarks and can have crops recorded if known.
+Existing contacts default to Met. Buyers use the existing `trader` database kind.
+
+| Kind | Met pin | Planned pin |
+| --- | --- | --- |
+| Farmer | Green | Purple |
+| Buyer / trader | Blue | Pink |
+| Warehouse | Orange | Cyan |
+
+Planned pins, their labels, and expanded details have dotted outlines.
 
 ## Setup
 
@@ -30,6 +42,10 @@ cp .env.example .env     # fill in the anon key and a Mapbox public token
 npm install
 npm run dev              # http://localhost:5174
 ```
+
+Before deploying this version, run `supabase/delta-08-field-map-planned-visits.sql`
+in the Supabase SQL editor after `delta-07-field-map.sql`. It adds the visit status
+column, defaults existing records to Met, and keeps the existing membership policies.
 
 Node 22 (`.nvmrc` at the repo root) — Vite 7 will not run on 18.
 
@@ -66,6 +82,16 @@ seeing the map.
 - **Add a point** — tap `+`, then either long-press the map where you want the pin or tap
   **Use my location**. Drag the pin to fine-tune, then **Continue** and fill in the details.
   A long press works from anywhere, so you can skip the `+` entirely.
+- **Plan a visit** — add a point as above, choose **Planned — yet to meet**, select
+  Farmer, Buyer / trader, or Warehouse, and add a name and remarks. Save to keep the plan.
+- **After meeting** — open the point, tap **Edit**, switch Visit status to **Met**, and
+  save. The pin and outlines update while the name, remarks, location and crops remain.
+- **List** — tap List to open Field notes. Remarks lead each card, with the contact's
+  name and tags below. Search by name, filter by contact/visit tags, or sort by tag,
+  planned first, or name. Tap a card for details; Back to list preserves the search
+  and scroll position. On phones the list and its details fill the screen as a page;
+  desktop uses a sidebar. Back to map returns to the map, and browser Back works
+  between map and list. The list uses existing records and needs no extra migration.
 - **Filter** — the chips top-left toggle each kind on and off; the number is how many exist.
 - **Satellite** — the button top-right swaps the basemap.
 - **Edit or delete** — tap a marker, then use the buttons at the bottom of the sheet.
@@ -125,6 +151,7 @@ src/
   supabase.ts       client, types, and every read and write
   MapCanvas.tsx     the Mapbox map, markers, style toggle
   useLongPress.ts   long-press on touch, done by hand (see the comment inside)
+  PlaceList.tsx     remarks-first searchable contact list and tag sorting
   PlaceSheet.tsx    details for a tapped point
   PlaceForm.tsx     add and edit
   LoginScreen.tsx   email + password
