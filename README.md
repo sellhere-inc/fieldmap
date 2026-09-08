@@ -80,8 +80,42 @@ seeing the map.
 
 ## Using it
 
-- **Add a point** — tap `+`, then either long-press the map where you want the pin or tap
-  **Use my location**. Drag the pin to fine-tune, then **Continue** and fill in the details.
+New pins default to **Buyer** and **Planned — yet to meet**. Both can be changed
+in the form; editing an existing pin retains its saved type and visit status.
+
+- **Saved Google Maps link** — add an optional Google Maps link in the location
+  form. Bare domains such as `example.com` and links without `www` are accepted;
+  missing protocols default to HTTPS. **Open in Google Maps** uses that link when present and the pin coordinates
+  otherwise. Links used to set the pin location are copied into this field automatically.
+  You can replace or clear it while editing. Run `migrations/11-pin-google-maps-link.sql`
+  in the Supabase SQL editor to enable saving this field.
+
+- **Filter by tags** — open **Filter by tags** on the map or in Field Notes and
+  check one or more tags. Pins with any selected tag appear; the others are hidden.
+  The selection carries between both views and combines with their existing type,
+  visit, or text filters. **Clear tag filter** removes the tag restriction.
+
+- **Pin tags** — while adding or editing a location, select an existing tag or type
+  a new one such as Restaurant and press **Create tag** (or Enter). Multiple tags
+  are supported; tap a selected tag to remove it. Saving also includes any tag you
+  have typed but not yet added. Tags appear in details and Field Notes cards, and
+  searching Field Notes includes tags. The shared tag list remains available even
+  when a tag is no longer assigned to a pin. Run `migrations/10-pin-tags.sql` in the
+  Supabase SQL editor before using tags; existing pins start with no custom tags.
+
+- **General notes** — open the General notes tab to create separate Markdown notes,
+  search titles and text, pin notes, edit with Write/Preview, and download `.md` files.
+  Use **Save note** to save changes. Notes are shared with all field team members.
+  Drafts stay open while switching tabs; closing an unsaved note asks before discarding.
+  Before using this feature, run `fieldmap/migrations/09-general-notes.sql` in the
+  Supabase SQL editor after `delta-07-field-map.sql`. It creates the notes table with
+  the existing field membership access policy. This migration must be applied separately
+  from deploying the frontend.
+
+- **Add a point** — tap `+`, enter **Latitude** and **Longitude** or paste a
+  **Google Maps link**, then tap **Use this location**. Review the pin and select
+  **Continue**. You can also long-press the map or use your current location.
+  The same coordinate/link inputs are available when editing an existing location.
   A long press works from anywhere, so you can skip the `+` entirely.
 - **Plan a visit** — add a point as above, choose **Planned — yet to meet**, select
   Farmer, Buyer, or Warehouse, and add a name and remarks. Save to keep the plan.
@@ -102,7 +136,15 @@ Browser geolocation is blocked on insecure origins, so **Use my location** only 
 
 ## Deploying
 
-The build is plain static files.
+The frontend builds to static files. Short Google Maps links (`maps.app.goo.gl` and
+`goo.gl/maps`) use `netlify/functions/resolve-map-link.mjs`, which is deployed with
+Netlify and also runs through the Vite dev/preview middleware. Other hosting providers
+need an equivalent `/api/resolve-map-link` endpoint for short links. Full coordinate
+links and manually entered coordinates need no server. Links containing only a place
+name or ID ask for pin coordinates; the app does not substitute the viewport center.
+
+Run `node tests/location-input.test.mjs` to check coordinate validation, Maps URL
+parsing, and redirect restrictions.
 
 ```bash
 npm run build     # -> dist/
@@ -118,17 +160,9 @@ for a real vector map; it caches after the first load.
 
 ## Design
 
-Same language as the marketing site at
-[sellhere.vercel.app](https://sellhere.vercel.app) (`website/index.html`): Apple-style
-light surfaces, 980px pill controls, an 18px card radius, tightened heading letter-spacing
-and generous padding. Every colour token in `src/styles.css` `:root` is copied verbatim
-from the site's `:root`, so the two stay in step — if the site's palette changes, copy the
-block across.
-
-The basemap stays dark, so this is light chrome floating over a dark map, the way Apple
-Maps does it. If you would rather the map matched the site's light surfaces, add
-`light: 'mapbox://styles/mapbox/light-v11'` to `MAP_STYLES` in `MapCanvas.tsx` and make it
-the default.
+Dark mode is used throughout: map controls, contact lists, forms, login, and
+Markdown notes use dark surfaces with high-contrast text. Native inputs and browser
+chrome use the dark color scheme. The Satellite button changes the basemap only.
 
 **Fonts.** Poppins for English at the same weights the site loads, with **Anek Malayalam**
 next in the stack:

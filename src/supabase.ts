@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import type { CSSProperties } from 'react';
+import { cleanTags } from './tags';
+import { savedGoogleMapsLink } from './locationInput';
 
 const url = import.meta.env.VITE_SUPABASE_URL;
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -86,9 +88,11 @@ export interface FieldPlace {
   kind: PlaceKind;
   visit_status: VisitStatus;
   name: string;
+  tags: string[];
   remarks: string | null;
   latitude: number;
   longitude: number;
+  google_maps_url: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -106,9 +110,11 @@ export interface PlaceDraft {
   kind: PlaceKind;
   visit_status: VisitStatus;
   name: string;
+  tags: string[];
   remarks: string;
   latitude: number;
   longitude: number;
+  google_maps_url: string;
   crops: CropDraft[];
 }
 
@@ -124,7 +130,13 @@ export async function fetchPlaces(): Promise<FieldPlace[]> {
     .order('created_at', { ascending: false });
 
   if (error) throw error;
-  return (data ?? []).map((place) => ({ ...place, visit_status: place.visit_status ?? 'met' })) as FieldPlace[];
+  return (data ?? []).map((place) => ({ ...place, google_maps_url: place.google_maps_url ?? null, tags: place.tags ?? [], visit_status: place.visit_status ?? 'met' })) as FieldPlace[];
+}
+
+export async function fetchTagNames(): Promise<string[]> {
+  const { data, error } = await supabase.from('field_tags').select('name').order('name');
+  if (error) throw error;
+  return (data ?? []).map((tag) => tag.name);
 }
 
 /** Crop rows are only meaningful for farmers, and blank rows are dropped. */
@@ -162,9 +174,11 @@ export async function createPlace(draft: PlaceDraft): Promise<void> {
       kind: draft.kind,
       visit_status: draft.visit_status,
       name: draft.name.trim(),
+      tags: cleanTags(draft.tags),
       remarks: draft.remarks.trim() || null,
       latitude: draft.latitude,
       longitude: draft.longitude,
+      google_maps_url: savedGoogleMapsLink(draft.google_maps_url),
     })
     .select('id')
     .single();
@@ -180,9 +194,11 @@ export async function updatePlace(id: string, draft: PlaceDraft): Promise<void> 
       kind: draft.kind,
       visit_status: draft.visit_status,
       name: draft.name.trim(),
+      tags: cleanTags(draft.tags),
       remarks: draft.remarks.trim() || null,
       latitude: draft.latitude,
       longitude: draft.longitude,
+      google_maps_url: savedGoogleMapsLink(draft.google_maps_url),
     })
     .eq('id', id);
 

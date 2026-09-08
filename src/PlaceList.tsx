@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react';
+import { TagFilter } from './TagFilter';
+import { matchesTags } from './tags';
 import {
   cssVars, KIND_LABEL, PLACE_KINDS, placeColor, VISIT_LABEL,
   type FieldPlace, type PlaceKind, type VisitStatus,
@@ -8,14 +10,15 @@ export type ListSort = 'tag' | 'status' | 'name';
 
 export function selectPlaces(
   places: FieldPlace[], query: string, kind: PlaceKind | 'all',
-  status: VisitStatus | 'all', sort: ListSort,
+  status: VisitStatus | 'all', sort: ListSort, selectedTags: string[] = [],
 ): FieldPlace[] {
   const search = query.trim().normalize('NFC').toLocaleLowerCase();
   return places.filter((place) =>
-    [place.name, place.remarks ?? ''].some((text) =>
+    [place.name, place.remarks ?? '', ...place.tags].some((text) =>
       text.normalize('NFC').toLocaleLowerCase().includes(search))
     && (kind === 'all' || place.kind === kind)
     && (status === 'all' || place.visit_status === status)
+    && matchesTags(place.tags, selectedTags)
   ).sort((a, b) => {
     const byKind = KIND_LABEL[a.kind].localeCompare(KIND_LABEL[b.kind]);
     const byStatus = Number(a.visit_status === 'met') - Number(b.visit_status === 'met');
@@ -28,6 +31,9 @@ export function selectPlaces(
 
 interface PlaceListProps {
   places: FieldPlace[];
+  tags: string[];
+  selectedTags: string[];
+  onTagsChange: (tags: string[]) => void;
   hidden: boolean;
   loading: boolean;
   error: string | null;
@@ -35,13 +41,13 @@ interface PlaceListProps {
   onRetry: () => void;
 }
 
-export function PlaceList({ places, hidden, loading, error, onSelect, onRetry }: PlaceListProps) {
+export function PlaceList({ places, tags, selectedTags, onTagsChange, hidden, loading, error, onSelect, onRetry }: PlaceListProps) {
   const [query, setQuery] = useState('');
   const [kind, setKind] = useState<PlaceKind | 'all'>('all');
   const [status, setStatus] = useState<VisitStatus | 'all'>('all');
   const [sort, setSort] = useState<ListSort>('tag');
-  const results = useMemo(() => selectPlaces(places, query, kind, status, sort),
-    [places, query, kind, status, sort]);
+  const results = useMemo(() => selectPlaces(places, query, kind, status, sort, selectedTags),
+    [places, query, kind, status, sort, selectedTags]);
 
   return (
     <section className="sheet contact-list" hidden={hidden} aria-label="Contact list">
@@ -54,10 +60,11 @@ export function PlaceList({ places, hidden, loading, error, onSelect, onRetry }:
       </header>
       <div className="sheet-body">
         <div className="list-controls">
+          <TagFilter tags={tags} selected={selectedTags} onChange={onTagsChange} />
           <label>
-            Search names and remarks
+            Search names, remarks, and tags
             <input type="search" autoFocus value={query} onChange={(event) => setQuery(event.target.value)}
-              placeholder="Name or remarks text" />
+              placeholder="Name, remarks, or tag" />
           </label>
           <div className="list-filter-row">
             <label>
@@ -109,6 +116,7 @@ export function PlaceList({ places, hidden, loading, error, onSelect, onRetry }:
                   <span className="note-tags">
                     <span className="note-tag">{KIND_LABEL[place.kind]}</span>
                     <span className="note-tag">{VISIT_LABEL[place.visit_status]}</span>
+                    {place.tags.map((tag) => <span className="note-tag" key={tag}>{tag}</span>)}
                   </span>
                 </div>
                 <span className="note-open">Open details →</span>

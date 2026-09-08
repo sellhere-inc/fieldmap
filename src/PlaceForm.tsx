@@ -1,3 +1,6 @@
+import { LocationInput } from './LocationInput';
+import { useId, useState } from 'react';
+import { cleanTags, tagKey } from './tags';
 import {
   cssVars,
   placeColor,
@@ -16,8 +19,9 @@ interface PlaceFormProps {
   error: string | null;
   /** Crop names already used anywhere, for the autocomplete list. */
   cropSuggestions: string[];
+  tagSuggestions: string[];
   onChange: (draft: PlaceDraft) => void;
-  onSave: () => void;
+  onSave: (draft: PlaceDraft) => void;
   onCancel: () => void;
   onReposition: () => void;
 }
@@ -28,11 +32,22 @@ export function PlaceForm({
   busy,
   error,
   cropSuggestions,
+  tagSuggestions,
   onChange,
   onSave,
   onCancel,
   onReposition,
 }: PlaceFormProps) {
+  const [tagInput, setTagInput] = useState('');
+  const [tagError, setTagError] = useState<string | null>(null);
+  const tagListId = useId();
+  const availableTags = tagSuggestions.filter((tag) => !draft.tags.some((selected) => tagKey(selected) === tagKey(tag)));
+  const addTag = (tag = tagInput) => {
+    try {
+      onChange({ ...draft, tags: cleanTags([...draft.tags, tag], tagSuggestions) });
+      setTagInput(''); setTagError(null);
+    } catch (error) { setTagError((error as Error).message); }
+  };
   const set = <K extends keyof PlaceDraft>(key: K, value: PlaceDraft[K]) =>
     onChange({ ...draft, [key]: value });
 
@@ -48,7 +63,11 @@ export function PlaceForm({
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
-    onSave();
+    try {
+      const submitted = { ...draft, tags: cleanTags([...draft.tags, tagInput], tagSuggestions) };
+      onChange(submitted); setTagInput(''); setTagError(null);
+      onSave(submitted);
+    } catch (error) { setTagError((error as Error).message); }
   };
 
   return (
@@ -100,6 +119,31 @@ export function PlaceForm({
               </button>
             ))}
           </div>
+        </div>
+
+        <div className="field pin-tags">
+          <h3>Tags</h3>
+          <p className="muted">Choose existing tags or create your own, like Restaurant.</p>
+          <div className="pin-tag-list" aria-label="Selected tags">
+            {draft.tags.map((tag) => <button type="button" className="pin-tag" key={tag} disabled={busy}
+              aria-label={'Remove tag ' + tag} onClick={() => set('tags', draft.tags.filter((item) => item !== tag))}>
+              {tag} <span aria-hidden="true">×</span>
+            </button>)}
+          </div>
+          <label className="note-label">Find or create a tag
+            <input list={tagListId} value={tagInput} maxLength={64} disabled={busy} placeholder="e.g. Restaurant"
+              onChange={(event) => setTagInput(event.target.value)}
+              onKeyDown={(event) => { if (event.key === 'Enter' && !event.nativeEvent.isComposing) { event.preventDefault(); addTag(); } }} />
+          </label>
+          <datalist id={tagListId}>{availableTags.map((tag) => <option key={tag} value={tag} />)}</datalist>
+          <button type="button" className="btn btn--ghost" disabled={busy || !tagInput.trim()} onClick={() => addTag()}>
+            {tagSuggestions.some((tag) => tagKey(tag) === tagKey(tagInput)) ? 'Add existing tag' : 'Create tag'}
+          </button>
+          {availableTags.length > 0 && <div className="pin-tag-options" aria-label="Existing tags">
+            {availableTags.filter((tag) => tagKey(tag).includes(tagKey(tagInput))).map((tag) =>
+              <button type="button" className="pin-tag" key={tag} disabled={busy} onClick={() => addTag(tag)}>{tag}</button>)}
+          </div>}
+          {tagError && <p className="error" role="alert">{tagError}</p>}
         </div>
 
         <label className="field">
@@ -173,6 +217,13 @@ export function PlaceForm({
           <p className="muted">
             {draft.latitude.toFixed(6)}, {draft.longitude.toFixed(6)}
           </p>
+          <LocationInput disabled={busy} onApply={({ lat, lng }, mapsLink) => onChange({ ...draft, latitude: lat, longitude: lng,
+            google_maps_url: mapsLink ?? draft.google_maps_url })} />
+          <label className="note-label">Google Maps link (optional)
+            <input type="text" inputMode="url" autoCapitalize="none" autoCorrect="off" value={draft.google_maps_url} disabled={busy} placeholder="maps.app.goo.gl/… or example.com"
+              onChange={(event) => set('google_maps_url', event.target.value)} />
+          </label>
+          <p className="muted visit-help">Open in Google Maps uses this link when provided. Leave blank to use the pin’s coordinates.</p>
           <button type="button" className="btn btn--ghost" onClick={onReposition}>
             Reposition on map
           </button>

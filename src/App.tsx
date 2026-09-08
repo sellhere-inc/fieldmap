@@ -5,6 +5,10 @@ import { MapCanvas, type FocusRequest, type MapStyleName } from './MapCanvas';
 import { PlaceForm } from './PlaceForm';
 import { PlaceSheet } from './PlaceSheet';
 import { PlaceList } from './PlaceList';
+import { GeneralNotes } from './GeneralNotes';
+import { LocationInput } from './LocationInput';
+import { TagFilter } from './TagFilter';
+import { cleanTags, matchesTags } from './tags';
 import { fieldErrorMessage } from './errors';
 import { requestLocation, locationErrorMessage, type UserLocation } from './location';
 import {
@@ -12,6 +16,7 @@ import {
   cssVars,
   deletePlace,
   fetchPlaces,
+  fetchTagNames,
   KIND_COLOR,
   KIND_PLURAL,
   PLACE_KINDS,
@@ -26,7 +31,7 @@ import {
 type Mode = 'idle' | 'placing' | 'form';
 
 function blankDraft(lat: number, lng: number): PlaceDraft {
-  return { kind: 'farmer', visit_status: 'met', name: '', remarks: '', latitude: lat, longitude: lng, crops: [] };
+  return { kind: 'trader', visit_status: 'planned', name: '', tags: [], remarks: '', latitude: lat, longitude: lng, google_maps_url: '', crops: [] };
 }
 
 function draftFromPlace(place: FieldPlace): PlaceDraft {
@@ -34,9 +39,11 @@ function draftFromPlace(place: FieldPlace): PlaceDraft {
     kind: place.kind,
     visit_status: place.visit_status,
     name: place.name,
+    tags: [...place.tags],
     remarks: place.remarks ?? '',
     latitude: place.latitude,
     longitude: place.longitude,
+    google_maps_url: place.google_maps_url ?? '',
     crops: [...place.field_place_crops]
       .sort((a, b) => a.sort_order - b.sort_order)
       .map((crop) => ({ crop_name: crop.crop_name, avg_yield: crop.avg_yield ?? '' })),
@@ -49,8 +56,11 @@ export default function App() {
   const [isMember, setIsMember] = useState<boolean | null>(null);
 
   const [places, setPlaces] = useState<FieldPlace[]>([]);
+  const [tagSuggestions, setTagSuggestions] = useState<string[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [placesLoading, setPlacesLoading] = useState(true);
   const [listOpen, setListOpen] = useState(window.location.hash === '#contacts');
+  const [notesOpen, setNotesOpen] = useState(window.location.hash === '#notes');
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [visibleKinds, setVisibleKinds] = useState<Set<PlaceKind>>(new Set(PLACE_KINDS));
@@ -76,11 +86,13 @@ export default function App() {
   useEffect(() => {
     const navigate = () => {
       setListOpen(window.location.hash === '#contacts');
+      setNotesOpen(window.location.hash === '#notes');
       setSelectedId(null);
       setMode('idle');
       setDraft(null);
       setEditingId(null);
       setFormError(null);
+      setNotice(null);
     };
     window.addEventListener('hashchange', navigate);
     return () => window.removeEventListener('hashchange', navigate);
@@ -122,6 +134,7 @@ export default function App() {
     setPlacesLoading(true);
     try {
       setPlaces(await fetchPlaces());
+      setTagSuggestions(await fetchTagNames());
       setLoadError(null);
     } catch (error) {
       setLoadError(fieldErrorMessage(error, 'Could not load locations.'));
@@ -135,11 +148,14 @@ export default function App() {
   }, [isMember, reload]);
 
   // --- derived -------------------------------------------------------------
+  const tagOptions = useMemo(() => cleanTags([...tagSuggestions, ...places.flatMap((place) => place.tags)])
+    .sort((a, b) => a.localeCompare(b)), [tagSuggestions, places]);
+  const taggedPlaces = useMemo(() => places.filter((place) => matchesTags(place.tags, selectedTags)), [places, selectedTags]);
   // Resolved fresh from `places`, so an edit or a reload is reflected straight
   // away — and a row deleted elsewhere closes the sheet instead of stranding it.
   const selected = useMemo(
-    () => places.find((place) => place.id === selectedId) ?? null,
-    [places, selectedId]
+    () => taggedPlaces.find((place) => place.id === selectedId) ?? null,
+    [taggedPlaces, selectedId]
   );
 
   // Autocomplete comes free from the list already in memory.
@@ -153,9 +169,9 @@ export default function App() {
 
   const counts = useMemo(() => {
     const tally = { farmer: 0, trader: 0, warehouse: 0 } as Record<PlaceKind, number>;
-    for (const place of places) tally[place.kind] += 1;
+    for (const place of taggedPlaces) tally[place.kind] += 1;
     return tally;
-  }, [places]);
+  }, [taggedPlaces]);
 
   // --- actions -------------------------------------------------------------
   const toggleKind = (kind: PlaceKind) => {
@@ -229,11 +245,13 @@ export default function App() {
 
   const openForm = () => {
     setFormError(null);
+    setNotice(null);
     setMode('form');
   };
 
   const editSelected = () => {
     if (!selected) return;
+    setNotice(null);
     setDraft(draftFromPlace(selected));
     setEditingId(selected.id);
     setSelectedId(null);
@@ -248,17 +266,17 @@ export default function App() {
     setFormError(null);
   };
 
-  const save = async () => {
-    if (!draft || busy) return;
-    if (!draft.name.trim()) {
+  const save = async (submittedDraft: PlaceDraft) => {
+    if (busy) return;
+    if (!submittedDraft.name.trim()) {
       setFormError('A name is required.');
       return;
     }
     setBusy(true);
     setFormError(null);
     try {
-      if (editingId) await updatePlace(editingId, draft);
-      else await createPlace(draft);
+      if (editingId) await updatePlace(editingId, submittedDraft);
+      else await createPlace(submittedDraft);
       await reload();
       cancelEditing();
     } catch (error) {
@@ -309,10 +327,16 @@ export default function App() {
   const panelOpen = (listOpen && mode !== 'placing') || mode === 'form' || (mode === 'idle' && selected !== null);
 
   return (
-    <div className={`app ${panelOpen ? 'has-panel' : ''} ${listOpen && mode !== 'placing' ? 'has-list' : ''} ${mode === 'idle' && !listOpen ? 'has-search' : ''}`}>
+    <div className={`app ${notesOpen ? 'has-general-notes' : ''} ${panelOpen ? 'has-panel' : ''} ${listOpen && mode !== 'placing' ? 'has-list' : ''} ${mode === 'idle' && !listOpen ? 'has-search' : ''}`}>
+      <nav className="workspace-tabs" aria-label="Workspace">
+        <a href="#map" aria-current={!listOpen && !notesOpen ? 'page' : undefined}>Map</a>
+        <a href="#contacts" aria-current={listOpen ? 'page' : undefined}>Field notes</a>
+        <a href="#notes" aria-current={notesOpen ? 'page' : undefined}>General notes</a>
+      </nav>
+      {isMember && <GeneralNotes key={session.user.id} hidden={!notesOpen} />}
       <div className="map-workspace">
       <MapCanvas
-        places={places}
+        places={taggedPlaces}
         visibleKinds={visibleKinds}
         selectedId={selected?.id ?? null}
         draftPoint={
@@ -373,16 +397,29 @@ export default function App() {
             </button>
           ))}
         </div>
+        <div className="map-tag-filter">
+          <TagFilter tags={tagOptions} selected={selectedTags} onChange={(tags) => { setSelectedTags(tags); setSelectedId(null); }} />
+          {selectedTags.length > 0 && <p className="tag-filter-count" role="status">
+            {taggedPlaces.filter((place) => visibleKinds.has(place.kind)).length} matching pins
+          </p>}
+        </div>
       </div>
 
       {(loadError || notice) && <div className="toast" role="status">{notice ?? loadError}</div>}
 
       {mode === 'placing' && (
         <div className="banner">
+          <h2>Choose a location</h2>
+          <LocationInput onApply={({ lat, lng }, mapsLink) => {
+            setDraft((current) => ({ ...(current ?? blankDraft(lat, lng)), latitude: lat, longitude: lng,
+              google_maps_url: mapsLink ?? current?.google_maps_url ?? '' }));
+            setFocus((current) => ({ lat, lng, zoom: 16, nonce: (current?.nonce ?? 0) + 1 }));
+            setNotice('Location set. Review the pin, then continue.');
+          }} />
           <p>
             {draft
               ? 'Drag the pin to fine-tune, then continue.'
-              : 'Long-press the map to drop a pin, or use your location.'}
+              : 'Or long-press the map to drop a pin, or use your current location.'}
           </p>
           <div className="banner-actions">
             <button type="button" className="btn btn--ghost" onClick={cancelEditing}>
@@ -419,6 +456,7 @@ export default function App() {
 
       {listOpen && (
         <PlaceList places={places} hidden={mode !== 'idle' || selected !== null}
+          tags={tagOptions} selectedTags={selectedTags} onTagsChange={(tags) => { setSelectedTags(tags); setSelectedId(null); }}
           loading={placesLoading} error={loadError}
           onRetry={() => void reload()} onSelect={(place) => setSelectedId(place.id)} />
       )}
@@ -443,6 +481,7 @@ export default function App() {
           busy={busy}
           error={formError}
           cropSuggestions={cropSuggestions}
+          tagSuggestions={tagSuggestions}
           onChange={setDraft}
           onSave={save}
           onCancel={cancelEditing}

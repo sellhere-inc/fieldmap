@@ -1,37 +1,22 @@
-/* Sell Here — Field Map
- *
- * Same design language as the marketing site (sellhere.vercel.app): Apple-style
- * light surfaces, Poppins, 980px pill controls, 18px card radius, and generous
- * breathing room. Every token below is copied verbatim from the `:root` block
- * in `website/index.html`, so the two stay in step.
- *
- * The basemap itself stays dark — that was a deliberate product decision — so
- * this is light chrome floating over a dark map, the way Apple Maps does it.
- *
- * Deliberately no transitions or keyframes: AGENTS.md item 13 asks for
- * animations off. Hover states change instantly instead of easing.
- */
+/* Dark surfaces throughout. Animations remain disabled. */
 
 :root {
-  --bg: #ffffff;
-  --bg-soft: #f5f5f7;
-  --ink: #1d1d1f;
-  --ink-2: #6e6e73;
-  --ink-3: #86868b;
-  --blue: #0071e3;
-  --blue-hover: #0077ed;
-  --green: #248a3d;
+  --bg: #191b20;
+  --bg-soft: #111318;
+  --ink: #f1f3f7;
+  --ink-2: #b5bbc7;
+  --ink-3: #969eae;
+  --blue: #79b8ff;
+  --blue-hover: #a0cdff;
+  --green: #6dd88e;
   --green-bright: #30d158;
-  --red: #ff453a;
-  --dark: #000000;
-  --dark-card: #161617;
+  --red: #ff8279;
+  --dark: #0d0f13;
+  --dark-card: #191b20;
   --radius: 18px;
-
-  /* Frosted panel, lifted straight from the site's fixed nav. */
-  --glass: rgba(251, 251, 253, 0.8);
-  --hairline: rgba(0, 0, 0, 0.08);
-
-  color-scheme: light;
+  --glass: rgba(25, 27, 32, 0.94);
+  --hairline: rgba(255, 255, 255, 0.14);
+  color-scheme: dark;
 }
 
 * {
@@ -85,7 +70,7 @@ h3 {
   display: grid;
   place-items: center;
   padding: 22px;
-  background: linear-gradient(180deg, #fbfbfd 0%, #f5f5f7 100%);
+  background: linear-gradient(180deg, #191b20 0%, #111318 100%);
 }
 
 /* Chrome floats over the map, clear of the notch and the home indicator. */
@@ -127,7 +112,7 @@ h3 {
   padding: 12px 16px;
   border: 1px solid var(--hairline);
   border-radius: 14px;
-  background: #fff;
+  background: var(--bg);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
   color: var(--ink-2);
   font-size: 16px;
@@ -201,9 +186,9 @@ h3 {
   align-items: center;
   gap: 8px;
   padding: 10px 18px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--hairline);
   border-radius: 980px;
-  background: #fff;
+  background: var(--bg);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.05);
   color: var(--ink-3);
   font: inherit;
@@ -255,12 +240,12 @@ h3 {
 }
 
 .btn:hover {
-  background: #ebebed;
+  background: #2a2e37;
 }
 
 .btn--primary {
   background: var(--blue);
-  color: #fff;
+  color: #0c1a2c;
 }
 
 .btn--primary:hover {
@@ -298,7 +283,7 @@ h3 {
 }
 
 .btn--tiny:hover {
-  background: rgba(251, 251, 253, 0.95);
+  background: #2a2e37;
 }
 
 .btn:disabled {
@@ -322,7 +307,7 @@ h3 {
 }
 
 .icon-btn:hover {
-  background: #e8e8ea;
+  background: #2a2e37;
   color: var(--ink);
 }
 
@@ -343,7 +328,7 @@ h3 {
   height: 56px;
   border: 1px solid var(--hairline);
   border-radius: 50%;
-  background: #fff;
+  background: var(--bg);
   color: var(--ink);
   font-size: 22px;
   line-height: 1;
@@ -358,7 +343,7 @@ h3 {
 .fab--primary {
   background: var(--blue);
   border-color: var(--blue);
-  color: #fff;
+  color: #0c1a2c;
   font-size: 28px;
   font-weight: 300;
 }
@@ -393,7 +378,7 @@ h3 {
   white-space: nowrap;
   padding: 5px 10px;
   border-radius: 8px;
-  background: #fff;
+  background: var(--bg);
   color: var(--ink);
   font-size: 13px;
   font-weight: 600;
@@ -401,7 +386,9 @@ h3 {
 }
 
 .marker {
-  position: relative;
+  /* Mapbox translates each marker from the map origin. Normal-flow positioning
+     offsets later pins and makes them drift away from their coordinates. */
+  position: absolute;
   width: 18px;
   height: 18px;
   padding: 0;
@@ -431,7 +418,7 @@ h3 {
   max-width: 160px;
   padding: 3px 8px;
   border-radius: 7px;
-  background: #fff;
+  background: var(--bg);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
   font-size: 12px;
   font-weight: 500;
@@ -459,7 +446,7 @@ h3 {
 .marker--draft {
   width: 28px;
   height: 28px;
-  background: #fff;
+  background: var(--bg);
   border-color: var(--blue);
   border-width: 6px;
   cursor: grab;
@@ -513,6 +500,8 @@ h3 {
   right: 16px;
   bottom: calc(env(safe-area-inset-bottom) + 20px);
   z-index: 4;
+  max-height: calc(100% - 150px);
+  overflow-y: auto;
   padding: 24px 24px 20px;
   border: 1px solid var(--hairline);
   border-radius: var(--radius);
@@ -529,6 +518,24 @@ h3 {
   color: var(--ink-2);
   letter-spacing: -0.01em;
 }
+
+.banner h2 { font-size: 20px; margin-bottom: 16px; }
+.location-input { display: grid; gap: 14px; margin: 16px 0; }
+.location-input label { display: grid; gap: 6px; font-size: 13px; color: var(--ink-2); }
+.location-input .btn { padding: 10px 12px; font-size: 14px; }
+.location-input-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.location-input-tabs button[aria-pressed="true"] { background: #23344b; color: var(--blue); }
+.coordinate-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.coordinate-fields label { min-width: 0; }
+.location-input .error { margin: 0; }
+
+.pin-tag-list, .pin-tag-options { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.pin-tag-options { max-height: 160px; overflow-y: auto; }
+.pin-tag { display: inline-flex; align-items: center; gap: 10px; max-width: 100%; padding: 8px 12px; border: 1px solid var(--hairline); border-radius: 10px; background: #23344b; color: var(--blue); font: inherit; font-size: 13px; overflow-wrap: anywhere; text-align: left; }
+button.pin-tag { cursor: pointer; }
+button.pin-tag:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+button.pin-tag:disabled { opacity: .5; cursor: not-allowed; }
+.pin-tag-options .pin-tag { background: var(--bg-soft); color: var(--ink-2); }
 
 .banner-actions {
   display: flex;
@@ -617,7 +624,7 @@ h3 {
   padding: 5px 14px;
   border-radius: 980px;
   background: var(--badge-color, var(--blue));
-  color: #fff;
+  color: #101820;
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -649,7 +656,7 @@ h3 {
   justify-content: space-between;
   gap: 16px;
   padding: 14px 0;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid var(--hairline);
   font-size: 16px;
 }
 
@@ -715,7 +722,7 @@ textarea {
   display: block;
   width: 100%;
   padding: 14px 16px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--hairline);
   border-radius: 12px;
   background: var(--bg-soft);
   color: var(--ink);
@@ -741,7 +748,7 @@ textarea:focus {
   outline: none;
   border-color: var(--blue);
   box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.16);
-  background: #fff;
+  background: var(--bg);
 }
 
 .crop-row {
@@ -766,7 +773,7 @@ textarea:focus {
   gap: 34px;
   min-height: 100%;
   padding: 80px 22px;
-  background: linear-gradient(180deg, #fbfbfd 0%, #f5f5f7 100%);
+  background: linear-gradient(180deg, #191b20 0%, #111318 100%);
 }
 
 .login-band > * {
@@ -780,7 +787,7 @@ textarea:focus {
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1.1;
-  background: linear-gradient(180deg, #1d1d1f 60%, #4a4a4e);
+  background: linear-gradient(180deg, #f1f3f7 60%, #b5bbc7);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -800,7 +807,7 @@ textarea:focus {
   gap: 20px;
   padding: 34px 30px;
   border-radius: var(--radius);
-  background: #fff;
+  background: var(--bg);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
 }
 
@@ -823,7 +830,7 @@ textarea:focus {
   max-width: 420px;
   padding: 34px 30px;
   border-radius: var(--radius);
-  background: #fff;
+  background: var(--bg);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
 }
 
@@ -933,7 +940,7 @@ code {
 }
 
 .sheet--planned .badge {
-  color: var(--ink);
+  color: #101820;
 }
 
 /* Contact notes: a sidebar on desktop, a separate full-height page on phones. */
@@ -1075,6 +1082,7 @@ code {
 }
 
 .list-notice {
+  pointer-events: none;
   position: absolute;
   right: 16px;
   bottom: calc(env(safe-area-inset-bottom) + 16px);
@@ -1131,3 +1139,79 @@ code {
     padding-right: 20px;
   }
 }
+
+/* Persistent workspace navigation sits outside each view's scroll area. */
+.app { height: calc(100% - 64px - env(safe-area-inset-bottom)); overflow: visible; }
+.workspace-tabs {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 20;
+  display: flex; justify-content: center; gap: 6px;
+  height: calc(64px + env(safe-area-inset-bottom));
+  padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+  background: var(--bg); border-top: 1px solid var(--hairline);
+}
+.workspace-tabs a {
+  display: flex; align-items: center; justify-content: center;
+  flex: 1; max-width: 200px; border-radius: 12px;
+  color: var(--ink-2); font-size: 14px; text-decoration: none;
+}
+.workspace-tabs a[aria-current] { color: var(--blue); background: #23344b; font-weight: 600; }
+.workspace-tabs a:focus-visible, .general-notes button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+.has-general-notes .map-workspace { visibility: hidden; pointer-events: none; }
+.general-notes { position: absolute; inset: 0; z-index: 10; overflow-y: auto; background: var(--bg-soft); }
+.general-notes[hidden] { display: none; }
+.general-notes-inner { max-width: 1200px; margin: auto; padding: calc(32px + env(safe-area-inset-top)) 28px 40px; }
+.general-notes-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px; margin-bottom: 28px; }
+.general-notes-head h1 { font-size: 32px; margin-bottom: 6px; }
+.note-label { display: grid; gap: 8px; font-size: 14px; color: var(--ink-2); }
+.general-notes .note-label input { background: var(--bg); }
+.general-notes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 18px; align-items: start; }
+.general-note-card { padding: 24px; width: 100%; border: 1px solid var(--hairline); border-radius: 18px; background: var(--bg); text-align: left; font: inherit; color: var(--ink); cursor: pointer; overflow-wrap: anywhere; }
+.general-note-card:hover { border-color: var(--blue); }
+.general-note-card h2 { font-size: 20px; margin-bottom: 12px; }
+.general-note-excerpt { white-space: pre-wrap; font-size: 15px; line-height: 1.6; color: var(--ink-2); display: -webkit-box; -webkit-line-clamp: 8; -webkit-box-orient: vertical; overflow: hidden; }
+.general-note-card time { display: block; margin-top: 24px; font-size: 12px; color: var(--ink-3); }
+.general-note-pin { display: inline-block; color: var(--blue); font-size: 12px; margin-bottom: 12px; }
+.notes-empty { padding: 60px 20px; text-align: center; }
+.notes-empty p { max-width: 420px; margin: 12px auto; }
+.note-editor { display: grid; gap: 20px; max-width: 860px; margin: auto; padding: 24px; border: 1px solid var(--hairline); border-radius: 18px; background: var(--bg); }
+.note-editor-toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+.note-editor .btn { font-size: 14px; padding: 10px 16px; }
+.note-view-toggle { display: flex; gap: 6px; }
+.note-editor button[aria-pressed="true"] { background: #23344b; color: var(--blue); }
+.markdown-input { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 16px; min-height: 320px; }
+.note-preview { min-height: 320px; padding: 16px; border: 1px solid var(--hairline); border-radius: 12px; }
+.markdown-body { line-height: 1.7; overflow-wrap: anywhere; overflow-x: auto; }
+.markdown-body > * + * { margin-top: 14px; }
+.markdown-body ul, .markdown-body ol { padding-left: 24px; }
+.markdown-body input[type="checkbox"] { display: inline; width: auto; margin-right: 6px; }
+.markdown-body pre { overflow-x: auto; background: var(--bg-soft); padding: 16px; border-radius: 10px; }
+.markdown-body pre code { padding: 0; }
+.markdown-body blockquote { border-left: 3px solid var(--blue); padding-left: 16px; color: var(--ink-2); }
+.markdown-body a { color: var(--blue); }
+.markdown-body img { max-width: 100%; }
+.markdown-body table { border-collapse: collapse; }
+.markdown-body th, .markdown-body td { border: 1px solid var(--hairline); padding: 8px 12px; }
+@media (max-width: 600px) {
+  .general-notes-inner { padding: calc(22px + env(safe-area-inset-top)) 16px 28px; }
+  .general-notes-head h1 { font-size: 28px; }
+  .general-notes-grid { grid-template-columns: 1fr; }
+  .note-editor { padding: 16px; }
+}
+
+.tag-filter { border: 1px solid var(--hairline); border-radius: 12px; background: var(--bg); color: var(--ink); min-width: 0; }
+.tag-filter summary { padding: 12px 14px; cursor: pointer; font-size: 14px; }
+.tag-filter summary span { margin-left: 10px; color: var(--blue); font-size: 12px; }
+.tag-filter summary:focus-visible { outline: 3px solid var(--blue); outline-offset: -3px; border-radius: 12px; }
+.tag-filter-panel { padding: 0 14px 14px; display: grid; gap: 12px; }
+.tag-filter-panel .btn { font-size: 14px; padding: 8px 12px; justify-self: start; }
+.tag-filter-options { max-height: 190px; overflow-y: auto; display: grid; gap: 4px; }
+.tag-filter-options label { display: flex; align-items: center; gap: 12px; padding: 10px 4px; cursor: pointer; font-size: 15px; color: var(--ink); }
+.tag-filter-options input { width: 18px; height: 18px; padding: 0; flex-shrink: 0; accent-color: var(--blue); }
+.tag-filter-options span { overflow-wrap: anywhere; }
+.map-tag-filter { max-width: 400px; margin: 0 16px 12px; }
+.tag-filter-count { font-size: 13px; padding: 8px 12px; background: var(--bg); border-radius: 10px; margin-top: 6px; }
+.filter-strip { max-height: calc(100% - 160px); overflow-y: auto; }
+.filter-strip:has(.tag-filter[open]) { z-index: 7; }
+.toast { top: calc(env(safe-area-inset-top) + 234px); pointer-events: none; }
+.has-search .toast { top: calc(env(safe-area-inset-top) + 294px); }
+@media (min-width: 820px) { .map-tag-filter { margin-left: 20px; } }

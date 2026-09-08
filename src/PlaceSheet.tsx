@@ -1,4 +1,5 @@
 import { cssVars, placeColor, VISIT_LABEL, KIND_LABEL, type FieldPlace } from './supabase';
+import { openGoogleMapsLink } from './locationInput';
 
 interface PlaceSheetProps {
   place: FieldPlace;
@@ -43,6 +44,9 @@ export function PlaceSheet({ place, onEdit, onDelete, onClose, busy, closeLabel 
       </header>
 
       <div className="sheet-body">
+        {place.tags.length > 0 && <div className="field"><h3>Tags</h3>
+          <div className="pin-tag-list">{place.tags.map((tag) => <span className="pin-tag" key={tag}>{tag}</span>)}</div>
+        </div>}
         {place.kind === 'farmer' && (
           <div className="field">
             <h3>Crops</h3>
@@ -75,7 +79,7 @@ export function PlaceSheet({ place, onEdit, onDelete, onClose, busy, closeLabel 
           <p className="muted">{coords}</p>
           <a
             className="link"
-            href={`https://www.google.com/maps/search/?api=1&query=${place.latitude},${place.longitude}`}
+            href={openGoogleMapsLink(place.google_maps_url, place.latitude, place.longitude)}
             target="_blank"
             rel="noreferrer"
           >
