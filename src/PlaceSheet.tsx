@@ -1,3 +1,4 @@
+import { X, ArrowLeft, PencilSimple, Trash, ArrowSquareOut, MapPin } from '@phosphor-icons/react';
 import { cssVars, placeColor, VISIT_LABEL, KIND_LABEL, type FieldPlace } from './supabase';
 import { openGoogleMapsLink } from './locationInput';
 
@@ -24,7 +25,7 @@ export function PlaceSheet({ place, onEdit, onDelete, onClose, busy, closeLabel 
 
   return (
     <section
-      className={`sheet ${place.visit_status === 'planned' ? 'sheet--planned' : ''}`}
+      className={`sheet place-detail ${place.visit_status === 'planned' ? 'sheet--planned' : ''}`}
       style={cssVars({ '--place-color': placeColor(place) })}
       aria-label={place.name}
     >
@@ -39,7 +40,7 @@ export function PlaceSheet({ place, onEdit, onDelete, onClose, busy, closeLabel 
           </p>
         </div>
         <button type="button" className={closeLabel === 'Close' ? 'icon-btn' : 'btn btn--ghost'} onClick={onClose} aria-label={closeLabel}>
-          {closeLabel === 'Close' ? '✕' : closeLabel}
+          {closeLabel === 'Close' ? <X size={18} /> : <><ArrowLeft size={16} /> {closeLabel}</>}
         </button>
       </header>
 
@@ -75,7 +76,7 @@ export function PlaceSheet({ place, onEdit, onDelete, onClose, busy, closeLabel 
         </div>
 
         <div className="field">
-          <h3>Location</h3>
+          <h3><MapPin size={16} aria-hidden="true" /> Location</h3>
           <p className="muted">{coords}</p>
           <a
             className="link"
@@ -83,7 +84,7 @@ export function PlaceSheet({ place, onEdit, onDelete, onClose, busy, closeLabel 
             target="_blank"
             rel="noreferrer"
           >
-            Open in Google Maps
+            Open in Google Maps <ArrowSquareOut size={15} aria-hidden="true" />
           </a>
         </div>
 
@@ -95,10 +96,10 @@ export function PlaceSheet({ place, onEdit, onDelete, onClose, busy, closeLabel 
 
       <footer className="sheet-actions">
         <button type="button" className="btn" onClick={onEdit} disabled={busy}>
-          Edit
+          <PencilSimple size={18} aria-hidden="true" /> Edit
         </button>
         <button type="button" className="btn btn--danger" onClick={onDelete} disabled={busy}>
-          {busy ? 'Deleting…' : 'Delete'}
+          <Trash size={18} aria-hidden="true" /> {busy ? 'Deleting…' : 'Delete'}
         </button>
       </footer>
     </section>

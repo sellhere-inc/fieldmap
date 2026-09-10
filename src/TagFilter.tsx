@@ -1,3 +1,4 @@
+import { SlidersHorizontal, CaretDown } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { tagKey } from './tags';
 
@@ -11,7 +12,7 @@ export function TagFilter({ tags, selected, onChange }: TagFilterProps) {
   const [query, setQuery] = useState('');
   const results = tags.filter((tag) => tagKey(tag).includes(tagKey(query)));
   return <details className="tag-filter">
-    <summary>Filter by tags <span>{selected.length ? selected.length + ' selected' : 'All tags'}</span></summary>
+    <summary><SlidersHorizontal size={17} aria-hidden="true" /> Tags <span>{selected.length ? selected.length + ' selected' : 'All'}</span><CaretDown size={13} className="tag-caret" aria-hidden="true" /></summary>
     <div className="tag-filter-panel">
       <p className="muted">Show pins with any selected tag.</p>
       <label className="note-label">Find a tag

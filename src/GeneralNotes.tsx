@@ -1,3 +1,4 @@
+import { Plus, NotePencil, PushPin, ArrowLeft, DownloadSimple, Trash, Check } from '@phosphor-icons/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -82,13 +83,13 @@ export function GeneralNotes({ hidden }: { hidden: boolean }) {
   return <main className="general-notes" hidden={hidden}>
     <div className="general-notes-inner">
       <header className="general-notes-head">
-        <div><h1>General notes</h1><p className="muted">Ideas, plans, and anything else. Shared with your field team.</p></div>
-        {!draft && <button className="btn btn--primary" onClick={() => open()}>+ New note</button>}
+        <div><span className="eyebrow">A LITTLE ROOM TO THINK</span><h1>Notes</h1><p className="muted">Ideas, plans, and anything else. Shared with your field team.</p></div>
+        {!draft && <button className="btn btn--primary" onClick={() => open()}><Plus size={18} aria-hidden="true" /> New note</button>}
       </header>
       {error && <p className="error" role="alert">{error} {!draft && <button className="btn" onClick={() => void reload()}>Retry</button>}</p>}
       {draft ? <section className="note-editor" aria-label="Note editor">
         <div className="note-editor-toolbar">
-          <button className="btn btn--ghost" disabled={busy} onClick={close}>Back to notes</button>
+          <button className="btn btn--ghost" disabled={busy} onClick={close}><ArrowLeft size={17} aria-hidden="true" /> Back to notes</button>
           <span className="muted" role="status">{busy ? 'Saving changes…' : dirty ? 'Unsaved changes' : 'Markdown note'}</span>
         </div>
         <label className="note-label">Title<input autoFocus placeholder="Untitled note" value={draft.title} disabled={busy}
@@ -107,17 +108,17 @@ export function GeneralNotes({ hidden }: { hidden: boolean }) {
         <p className="muted">Use # headings, **bold**, - lists, and - [ ] checklists.</p>
         <footer className="note-editor-toolbar">
           <div className="note-editor-toolbar">
-            {notes.some((note) => note.id === draft.id) && <button className="btn btn--danger" disabled={busy} onClick={() => void remove()}>Delete</button>}
-            <button className="btn" onClick={download}>Download .md</button>
+            {notes.some((note) => note.id === draft.id) && <button className="btn btn--danger" disabled={busy} onClick={() => void remove()}><Trash size={17} aria-hidden="true" /> Delete</button>}
+            <button className="btn" onClick={download}><DownloadSimple size={17} aria-hidden="true" /> Download</button>
           </div>
-          <button className="btn btn--primary" disabled={busy || !dirty} onClick={() => void save()}>{busy ? 'Saving…' : 'Save note'}</button>
+          <button className="btn btn--primary" disabled={busy || !dirty} onClick={() => void save()}><Check size={17} aria-hidden="true" /> {busy ? 'Saving…' : 'Save note'}</button>
         </footer>
       </section> : <>
         <label className="note-label">Search notes<input type="search" placeholder="Search titles and note text" value={query} onChange={(event) => setQuery(event.target.value)} /></label>
         <p className="muted list-count" role="status">{loading ? 'Loading notes…' : results.length + (results.length === 1 ? ' note' : ' notes')}</p>
-        {!loading && !error && !results.length && <div className="notes-empty"><h2>{notes.length ? 'No matching notes' : 'A place for every idea'}</h2><p className="muted">{notes.length ? 'Try a different search.' : 'Create your first note. Write freely in Markdown and keep each topic on its own card.'}</p></div>}
+        {!loading && !error && !results.length && <div className="notes-empty"><NotePencil size={42} weight="duotone" aria-hidden="true" /><h2>{notes.length ? 'No matching notes' : 'A place for every idea'}</h2><p className="muted">{notes.length ? 'Try a different search.' : 'Create your first note. Write freely in Markdown and keep each topic on its own card.'}</p></div>}
         <div className="general-notes-grid">{results.map((note) => <button key={note.id} className="general-note-card" onClick={() => open(note)}>
-          {note.pinned && <span className="general-note-pin">Pinned</span>}
+          {note.pinned && <span className="general-note-pin"><PushPin size={14} weight="fill" aria-hidden="true" /> Pinned</span>}
           <h2>{note.title || 'Untitled note'}</h2>
           <p className="general-note-excerpt">{note.content.slice(0, 350) || 'Empty note'}</p>
           <time dateTime={note.updated_at}>{new Date(note.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</time>

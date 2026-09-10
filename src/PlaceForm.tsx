@@ -1,3 +1,4 @@
+import { X, Check, MapPin } from '@phosphor-icons/react';
 import { LocationInput } from './LocationInput';
 import { useEffect, useId, useRef, useState } from 'react';
 import { googleMapsName, googleMapsUrl, resolveLocationInput } from './locationInput';
@@ -101,7 +102,7 @@ export function PlaceForm({
       <header className="sheet-head">
         <div><span className="flow-step">{isEditing ? 'YOUR FIELD MAP' : 'STEP 2 OF 2 · DETAILS'}</span><h2>{isEditing ? 'Edit location' : 'Make it yours'}</h2><p className="flow-subtitle">A name, a few notes. Ready for your next visit.</p></div>
         <button type="button" className="icon-btn" onClick={onCancel} aria-label="Cancel">
-          ✕
+          <X size={18} />
         </button>
       </header>
 
@@ -212,7 +213,7 @@ export function PlaceForm({
                   onClick={() => removeCrop(index)}
                   aria-label={`Remove crop ${index + 1}`}
                 >
-                  ✕
+                  <X size={18} />
                 </button>
               </div>
             ))}
@@ -248,7 +249,7 @@ export function PlaceForm({
           </label>
           <p className="muted visit-help">Open in Google Maps uses this link when provided. Leave blank to use the pin’s coordinates.</p>
           <button type="button" className="btn btn--ghost" onClick={onReposition}>
-            Reposition on map
+            <MapPin size={17} aria-hidden="true" /> Reposition on map
           </button>
         </div>
 
@@ -260,7 +261,7 @@ export function PlaceForm({
           Cancel
         </button>
         <button type="submit" className="btn btn--primary" disabled={busy}>
-          {busy ? 'Saving…' : isEditing ? 'Save changes' : 'Save location'}
+          <Check size={18} aria-hidden="true" /> {busy ? 'Saving…' : isEditing ? 'Save changes' : 'Save location'}
         </button>
       </footer>
     </form>

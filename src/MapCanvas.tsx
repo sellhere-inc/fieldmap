@@ -28,6 +28,7 @@ interface MapCanvasProps {
   visibleKinds: Set<PlaceKind>;
   selectedId: string | null;
   draftPoint: { lat: number; lng: number } | null;
+  placing: boolean;
   styleName: MapStyleName;
   focus: FocusRequest | null;
   userLocation: UserLocation | null;
@@ -41,6 +42,7 @@ export function MapCanvas({
   visibleKinds,
   selectedId,
   draftPoint,
+  placing,
   styleName,
   focus,
   userLocation,
@@ -64,6 +66,7 @@ export function MapCanvas({
   const draftMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const userMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const hasFitRef = useRef(false);
+  const appliedStyleRef = useRef(styleName);
 
   // A marker is created once and then reused, so its click handler must not
   // close over the FieldPlace it was built from — after an edit that object is
@@ -79,7 +82,7 @@ export function MapCanvas({
     mapboxgl.accessToken = MAPBOX_TOKEN;
     const instance = new mapboxgl.Map({
       container: containerRef.current,
-      style: MAP_STYLES.dark,
+      style: MAP_STYLES[styleName],
       center: DEFAULT_CENTER,
       zoom: DEFAULT_ZOOM,
       // Re-added below in compact form — Mapbox's terms require attribution to
@@ -88,6 +91,7 @@ export function MapCanvas({
     });
 
     instance.addControl(new mapboxgl.AttributionControl({ compact: true }), 'bottom-left');
+    appliedStyleRef.current = styleName;
     mapRef.current = instance;
     setMap(instance);
 
@@ -114,8 +118,9 @@ export function MapCanvas({
   // survive setStyle untouched. Only sources and layers would need re-adding,
   // and this map has none.
   useEffect(() => {
-    if (!map) return;
+    if (!map || appliedStyleRef.current === styleName) return;
     map.setStyle(MAP_STYLES[styleName]);
+    appliedStyleRef.current = styleName;
   }, [map, styleName]);
 
   // --- reconcile one marker per visible place ------------------------------
@@ -183,7 +188,7 @@ export function MapCanvas({
 
     const bounds = new mapboxgl.LngLatBounds();
     for (const place of places) bounds.extend([place.longitude, place.latitude]);
-    map.fitBounds(bounds, { padding: 72, maxZoom: 14, duration: 0 });
+    map.fitBounds(bounds, { padding: { top: Math.min(220, map.getContainer().clientHeight * 0.3), bottom: 140, left: 48, right: 48 }, maxZoom: 14, duration: 0 });
   }, [map, places, focus]);
 
   // Separate from contact markers so kind filters never hide your position.
@@ -211,6 +216,14 @@ export function MapCanvas({
     marker.getElement().setAttribute('aria-label', description);
     marker.getElement().title = description;
   }, [map, userLocation]);
+
+  // Desktop placement starts from the visible map area; the user then drags the pin.
+  useEffect(() => {
+    if (!map || !placing || draftPoint || window.matchMedia('(pointer: coarse)').matches) return;
+    const { clientWidth: width, clientHeight: height } = map.getContainer();
+    const point = map.unproject([Math.max(100, (width - (width >= 820 ? 440 : 0)) / 2), height / 2]);
+    onDraftMoveRef.current(point.lat, point.lng);
+  }, [map, placing, draftPoint]);
 
   // --- the pin being placed ------------------------------------------------
   useEffect(() => {
@@ -242,11 +255,18 @@ export function MapCanvas({
   useEffect(() => {
     if (!map || !focus) return;
     hasFitRef.current = true;
+    const container = map.getContainer();
+    const placementPanel = container.parentElement?.querySelector('.location-flow');
+    const placementBottom = placementPanel
+      ? Math.max(0, container.getBoundingClientRect().bottom - placementPanel.getBoundingClientRect().top + 16)
+      : container.clientHeight * 0.65;
     map.jumpTo({ center: [focus.lng, focus.lat], zoom: focus.zoom ?? map.getZoom(),
       padding: selectedId
         ? { top: 0, left: 0, right: window.innerWidth >= 820 ? 440 : 0,
             bottom: window.innerWidth < 820 ? map.getContainer().clientHeight * 0.55 : 0 }
-        : { top: 0, bottom: 0, left: 0, right: 0 } });
+        : placing && window.matchMedia('(pointer: coarse)').matches
+          ? { top: Math.min(64, Math.max(0, container.clientHeight - placementBottom - 40)), bottom: placementBottom, left: 0, right: 0 }
+          : { top: 0, bottom: 0, left: 0, right: 0 } });
   }, [map, focus?.nonce]);
 
   if (!MAPBOX_TOKEN) {

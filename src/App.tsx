@@ -1,3 +1,4 @@
+import { MapTrifold, Notebook, NotePencil, Crosshair, Plus, Stack, MagnifyingGlass, MapPin, Leaf, Storefront, Warehouse, X, Check, ArrowRight, CaretRight, LinkSimple, CaretDown } from '@phosphor-icons/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { LoginScreen } from './LoginScreen';
@@ -64,11 +65,19 @@ export default function App() {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [visibleKinds, setVisibleKinds] = useState<Set<PlaceKind>>(new Set(PLACE_KINDS));
-  const [styleName, setStyleName] = useState<MapStyleName>('dark');
+  const [styleName, setStyleName] = useState<MapStyleName>(() => {
+    try { return window.localStorage.getItem('fieldmap-map-style') === 'satellite' ? 'satellite' : 'dark'; }
+    catch { return 'dark'; }
+  });
+  useEffect(() => {
+    try { window.localStorage.setItem('fieldmap-map-style', styleName); }
+    catch { /* The map still works when browser storage is unavailable. */ }
+  }, [styleName]);
   const [focus, setFocus] = useState<FocusRequest | null>(null);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [locating, setLocating] = useState(false);
   const locationPending = useRef(false);
+  const manualLocationRef = useRef<HTMLDetailsElement | null>(null);
 
   const [mode, setMode] = useState<Mode>('idle');
   const modeRef = useRef(mode);
@@ -195,6 +204,7 @@ export default function App() {
       setSelectedId(null);
       setNotice(null);
       positionDraft(lat, lng);
+      setFocus((current) => ({ lat, lng, nonce: (current?.nonce ?? 0) + 1 }));
       setMode((current) => (current === 'form' ? 'form' : 'placing'));
     },
     [positionDraft, listOpen, mode]
@@ -344,11 +354,26 @@ export default function App() {
   const panelOpen = (listOpen && mode !== 'placing') || mode === 'form' || (mode === 'idle' && selected !== null);
 
   return (
-    <div className={`app ${selected ? 'has-selection' : ''} ${notesOpen ? 'has-general-notes' : ''} ${panelOpen ? 'has-panel' : ''} ${listOpen && mode !== 'placing' ? 'has-list' : ''} ${mode === 'idle' && !listOpen ? 'has-search' : ''}`}>
+    <div className={`app ${mode !== 'idle' ? 'is-creating' : ''} ${selected ? 'has-selection' : ''} ${notesOpen ? 'has-general-notes' : ''} ${panelOpen ? 'has-panel' : ''} ${listOpen && mode !== 'placing' ? 'has-list' : ''} ${mode === 'idle' && !listOpen ? 'has-search' : ''}`}>
       <nav className="workspace-tabs" aria-label="Workspace">
-        <a href="#map" aria-current={!listOpen && !notesOpen ? 'page' : undefined}>Map</a>
-        <a href="#contacts" aria-current={listOpen ? 'page' : undefined}>Field notes</a>
-        <a href="#notes" aria-current={notesOpen ? 'page' : undefined}>General notes</a>
+        <a href="#map" aria-current={!listOpen && !notesOpen ? 'page' : undefined}>
+          <MapTrifold size={23} weight={!listOpen && !notesOpen ? 'fill' : 'regular'} aria-hidden="true" /><span>Map</span>
+        </a>
+        <a href="#contacts" aria-current={listOpen ? 'page' : undefined}>
+          <Notebook size={23} weight={listOpen ? 'fill' : 'regular'} aria-hidden="true" /><span>Field notes</span>
+        </a>
+        <a href="#notes" aria-current={notesOpen ? 'page' : undefined}>
+          <NotePencil size={23} weight={notesOpen ? 'fill' : 'regular'} aria-hidden="true" /><span>Notes</span>
+        </a>
+        <span className="dock-divider" aria-hidden="true" />
+        <button type="button" onClick={locateMe} disabled={locating} aria-busy={locating}
+          aria-label={locating ? 'Finding your location' : 'Use my location'} title="Current location">
+          <Crosshair size={23} aria-hidden="true" /><span>{locating ? 'Locating…' : 'Locate'}</span>
+        </button>
+        <button type="button" className="dock-add" onClick={startPlacing} disabled={mode !== 'idle' || busy}
+          title={mode !== 'idle' ? 'Finish or cancel the current location first' : 'Add a location'} aria-label="Add a location">
+          <Plus size={23} weight="bold" aria-hidden="true" /><span>Add place</span>
+        </button>
       </nav>
       {isMember && <GeneralNotes key={session.user.id} hidden={!notesOpen} />}
       <div className="map-workspace">
@@ -356,6 +381,7 @@ export default function App() {
         places={taggedPlaces}
         visibleKinds={visibleKinds}
         selectedId={selected?.id ?? null}
+        placing={mode === 'placing'}
         draftPoint={
           mode !== 'idle' && draft ? { lat: draft.latitude, lng: draft.longitude } : null
         }
@@ -370,29 +396,27 @@ export default function App() {
         onDraftMove={positionDraft}
       />
 
-      <div className="top-bar">
+      <header className="top-bar">
+        <div className="map-identity"><span className="app-mark"><MapTrifold size={23} weight="duotone" aria-hidden="true" /></span>
+          <div><strong>Field Map</strong><span>SELL HERE</span></div>
+        </div>
         <div className="top-right">
-          <button
-            type="button"
-            className="btn btn--tiny"
-            onClick={() => setStyleName(styleName === 'dark' ? 'satellite' : 'dark')}
-          >
-            {styleName === 'dark' ? 'Satellite' : 'Dark'}
+          <button type="button" className="btn btn--tiny" title={styleName === 'dark' ? 'Switch to satellite map' : 'Switch to dark map'}
+            aria-label={styleName === 'dark' ? 'Switch to satellite map' : 'Switch to dark map'}
+            onClick={() => setStyleName(styleName === 'dark' ? 'satellite' : 'dark')}>
+            <Stack size={20} aria-hidden="true" /><span>{styleName === 'dark' ? 'Satellite' : 'Dark map'}</span>
           </button>
-          <button type="button" className="btn btn--tiny" onClick={() => supabase.auth.signOut()}>
-            Sign out
+          <button type="button" className="btn btn--tiny logout-button" onClick={() => supabase.auth.signOut()} aria-label="Logout" title="Logout">
+            Logout
           </button>
         </div>
         {mode === 'idle' && !listOpen && (
           <a href="#contacts" className="map-search" aria-label="Search names and remarks">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-              <circle cx="10.5" cy="10.5" r="6.5" />
-              <path d="m16 16 5 5" />
-            </svg>
-            <span>Search names and remarks</span>
+            <MagnifyingGlass size={21} aria-hidden="true" /><span>Search your places</span>
+            <span className="search-hint">Name, notes, or tag</span>
           </a>
         )}
-      </div>
+      </header>
 
       {/* Its own scrolling strip rather than sharing the top bar: at these
           proportions three labelled pills plus two buttons will not fit across
@@ -408,6 +432,7 @@ export default function App() {
               aria-pressed={visibleKinds.has(kind)}
               onClick={() => toggleKind(kind)}
             >
+              {kind === 'farmer' ? <Leaf size={16} aria-hidden="true" /> : kind === 'trader' ? <Storefront size={16} aria-hidden="true" /> : <Warehouse size={16} aria-hidden="true" />}
               {KIND_PLURAL[kind]}
               <span className="chip-count">{counts[kind]}</span>
             </button>
@@ -427,9 +452,9 @@ export default function App() {
         <section className="banner location-flow" aria-labelledby="location-heading">
           <header className="location-flow-head">
             <div className="location-flow-icon" aria-hidden="true">
-              <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>
+              <MapPin size={26} weight="duotone" />
             </div>
-            <button type="button" className="icon-btn" onClick={cancelEditing} aria-label="Cancel adding location">✕</button>
+            <button type="button" className="icon-btn" onClick={cancelEditing} aria-label="Cancel adding location"><X size={17} /></button>
           </header>
           <div className="location-flow-intro">
             <span className="flow-step">STEP 1 OF 2 · LOCATION</span>
@@ -438,28 +463,31 @@ export default function App() {
           </div>
           <div className="location-flow-body">
           <button type="button" className="location-current" onClick={locateMe} disabled={locating}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/></svg>
+            <Crosshair size={23} aria-hidden="true" />
             <span><strong>{locating ? 'Finding you…' : 'Use current location'}</strong><small>Pin where you are right now</small></span>
-            <span aria-hidden="true">›</span>
+            <CaretRight size={16} aria-hidden="true" />
           </button>
-          <div className="location-divider"><span>or add a place</span></div>
+          <details className="location-manual" ref={manualLocationRef}>
+          <summary><LinkSimple size={19} aria-hidden="true" /><span>Use a link or coordinates</span><CaretDown size={15} aria-hidden="true" /></summary>
           <LocationInput onApply={({ lat, lng, name }, mapsLink) => {
+            if (manualLocationRef.current) manualLocationRef.current.open = false;
             setDraft((current) => ({ ...(current ?? blankDraft(lat, lng)), latitude: lat, longitude: lng,
               google_maps_url: mapsLink ?? current?.google_maps_url ?? '',
               name: current?.name.trim() ? current.name : name ?? '' }));
             setFocus((current) => ({ lat, lng, zoom: 16, nonce: (current?.nonce ?? 0) + 1 }));
             setNotice('Location set. Review the pin, then continue.');
           }} />
+          </details>
           <div className={`location-preview ${draft ? 'is-ready' : ''}`} role="status">
-            <span className="location-preview-symbol" aria-hidden="true">{draft ? '✓' : '＋'}</span>
+            <span className="location-preview-symbol" aria-hidden="true">{draft ? <Check size={20} /> : <MapPin size={20} />}</span>
             <div><strong>{draft ? draft.name || 'Pin is ready' : 'Prefer to use the map?'}</strong>
-              <p>{draft ? `${draft.latitude.toFixed(5)}, ${draft.longitude.toFixed(5)} · Drag to adjust.` : 'Touch and hold anywhere on the map to drop a pin.'}</p>
+              <p>{draft ? `${draft.latitude.toFixed(5)}, ${draft.longitude.toFixed(5)} · Drag to adjust.` : <><span className="touch-hint">Touch and hold on the map to drop a pin.</span><span className="mouse-hint">Use the draggable pin, or enter a location above.</span></>}</p>
             </div>
           </div>
           </div>
           <footer className="location-flow-footer">
             <button type="button" className="btn btn--primary" onClick={openForm} disabled={!draft}>
-              Continue <span aria-hidden="true">→</span>
+              Continue <ArrowRight size={18} aria-hidden="true" />
             </button>
             <p>{draft ? 'Next, add a name and a few details.' : 'Choose a location to continue.'}</p>
           </footer>
@@ -468,22 +496,6 @@ export default function App() {
 
       </div>
 
-        <div className="fabs" role="group" aria-label="Map actions">
-          <button type="button" className="fab" onClick={locateMe} disabled={locating}
-            aria-label={locating ? 'Finding your location' : 'Use my location'} aria-busy={locating}>
-            {locating ? 'Finding you…' : '◎ Current location'}
-          </button>
-          <button
-            type="button"
-            className="fab fab--primary"
-            onClick={startPlacing}
-            disabled={mode !== 'idle' || busy}
-            title={mode !== 'idle' ? 'Finish or cancel the current location first' : 'Add a location'}
-            aria-label="Add a location"
-          >
-            + Add location
-          </button>
-        </div>
 
       {listOpen && (
         <PlaceList places={places} hidden={mode !== 'idle' || selected !== null}

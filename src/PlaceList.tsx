@@ -1,3 +1,4 @@
+import { ArrowLeft, CaretRight, MagnifyingGlass } from '@phosphor-icons/react';
 import { useMemo, useState } from 'react';
 import { TagFilter } from './TagFilter';
 import { matchesTags } from './tags';
@@ -54,16 +55,16 @@ export function PlaceList({ places, tags, selectedTags, onTagsChange, hidden, lo
     <section className="sheet contact-list" hidden={hidden} aria-label="Contact list">
       <header className="sheet-head">
         <div>
-          <h2>Field notes</h2>
-          <p className="muted visit-help">Remarks first, people close by.</p>
+          <span className="eyebrow">YOUR PEOPLE & PLACES</span><h2>Field notes</h2>
+          <p className="muted visit-help">The details that bring your map to life.</p>
         </div>
-        <a href="#map" className="btn btn--ghost">Back to map</a>
+        <a href="#map" className="icon-btn" aria-label="Back to map" title="Back to map"><ArrowLeft size={20} /></a>
       </header>
       <div className="sheet-body">
         <div className="list-controls">
           <TagFilter tags={tags} selected={selectedTags} onChange={onTagsChange} />
-          <label>
-            Search names, remarks, and tags
+          <label className="list-search-label">
+            <span className="sr-only">Search names, remarks, and tags</span><MagnifyingGlass size={20} aria-hidden="true" />
             <input type="search" autoFocus value={query} onChange={(event) => setQuery(event.target.value)}
               placeholder="Name, remarks, or tag" />
           </label>
@@ -120,7 +121,7 @@ export function PlaceList({ places, tags, selectedTags, onTagsChange, hidden, lo
                     {place.tags.map((tag) => <span className="note-tag" key={tag}>{tag}</span>)}
                   </span>
                 </div>
-                <span className="note-open">Open details →</span>
+                <span className="note-open">View place <CaretRight size={14} aria-hidden="true" /></span>
               </button>
             </li>
           ))}
