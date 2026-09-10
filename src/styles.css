@@ -457,7 +457,7 @@ h3 {
 }
 
 .marker--planned .marker__label {
-  border: 2px dotted var(--marker-color);
+  border: 0.5px solid var(--marker-color);
 }
 
 .marker--planned.is-selected {
@@ -933,10 +933,11 @@ code {
   }
 }
 
-/* Inset keeps the entire dotted outline visible on edge-to-edge mobile and desktop panels. */
+/* A thin dashed outline follows the rounded details pane, inset from its edge. */
 .sheet.sheet--planned {
-  outline: 3px dotted var(--place-color);
-  outline-offset: -5px;
+  border-radius: var(--radius);
+  outline: 1px dashed var(--place-color);
+  outline-offset: -3px;
 }
 
 .sheet--planned .badge {
@@ -1215,3 +1216,36 @@ code {
 .toast { top: calc(env(safe-area-inset-top) + 234px); pointer-events: none; }
 .has-search .toast { top: calc(env(safe-area-inset-top) + 294px); }
 @media (min-width: 820px) { .map-tag-filter { margin-left: 20px; } }
+
+/* Keep map actions in their own row above navigation, clear of every sheet. */
+.app { height: calc(100% - 140px - env(safe-area-inset-bottom)); }
+.fabs, .has-panel .fabs {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(64px + env(safe-area-inset-bottom));
+  height: 76px;
+  z-index: 20;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  padding: 10px 16px;
+  gap: 12px;
+  background: var(--bg);
+  border-top: 1px solid var(--hairline);
+}
+.fabs .fab {
+  width: auto;
+  max-width: 220px;
+  flex: 1;
+  height: 48px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  box-shadow: none;
+}
+.marker.is-muted { opacity: 0.18; }
+.marker.is-muted:hover, .marker.is-muted:focus-visible { opacity: 1; }
+@media (max-width: 819px) {
+  .has-selection .sheet { max-height: 55%; }
+}

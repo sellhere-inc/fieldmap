@@ -200,7 +200,23 @@ export default function App() {
     [positionDraft, listOpen, mode]
   );
 
+  const showMap = () => {
+    window.history.replaceState(null, '', '#map');
+    setListOpen(false);
+    setNotesOpen(false);
+  };
+
+  const selectPlace = (place: FieldPlace) => {
+    showMap();
+    setMode('idle');
+    setSelectedId(place.id);
+    setVisibleKinds((current) => new Set([...current, place.kind]));
+    setFocus((current) => ({ lat: place.latitude, lng: place.longitude, zoom: 16,
+      nonce: (current?.nonce ?? 0) + 1 }));
+  };
+
   const startPlacing = () => {
+    showMap();
     setSelectedId(null);
     setEditingId(null);
     setDraft(null);
@@ -219,6 +235,7 @@ export default function App() {
       setNotice('This browser has no location support.');
       return;
     }
+    if (mode === 'idle') showMap();
     locationPending.current = true;
     setLocating(true);
     const requestedMode = mode;
@@ -327,7 +344,7 @@ export default function App() {
   const panelOpen = (listOpen && mode !== 'placing') || mode === 'form' || (mode === 'idle' && selected !== null);
 
   return (
-    <div className={`app ${notesOpen ? 'has-general-notes' : ''} ${panelOpen ? 'has-panel' : ''} ${listOpen && mode !== 'placing' ? 'has-list' : ''} ${mode === 'idle' && !listOpen ? 'has-search' : ''}`}>
+    <div className={`app ${selected ? 'has-selection' : ''} ${notesOpen ? 'has-general-notes' : ''} ${panelOpen ? 'has-panel' : ''} ${listOpen && mode !== 'placing' ? 'has-list' : ''} ${mode === 'idle' && !listOpen ? 'has-search' : ''}`}>
       <nav className="workspace-tabs" aria-label="Workspace">
         <a href="#map" aria-current={!listOpen && !notesOpen ? 'page' : undefined}>Map</a>
         <a href="#contacts" aria-current={listOpen ? 'page' : undefined}>Field notes</a>
@@ -347,8 +364,7 @@ export default function App() {
         userLocation={userLocation}
         onSelect={(place) => {
           if (mode === 'form' || listOpen) return;
-          setMode('idle');
-          setSelectedId(place.id);
+          selectPlace(place);
         }}
         onLongPress={handleLongPress}
         onDraftMove={positionDraft}
@@ -410,9 +426,10 @@ export default function App() {
       {mode === 'placing' && (
         <div className="banner">
           <h2>Choose a location</h2>
-          <LocationInput onApply={({ lat, lng }, mapsLink) => {
+          <LocationInput onApply={({ lat, lng, name }, mapsLink) => {
             setDraft((current) => ({ ...(current ?? blankDraft(lat, lng)), latitude: lat, longitude: lng,
-              google_maps_url: mapsLink ?? current?.google_maps_url ?? '' }));
+              google_maps_url: mapsLink ?? current?.google_maps_url ?? '',
+              name: current?.name.trim() ? current.name : name ?? '' }));
             setFocus((current) => ({ lat, lng, zoom: 16, nonce: (current?.nonce ?? 0) + 1 }));
             setNotice('Location set. Review the pin, then continue.');
           }} />
@@ -435,30 +452,30 @@ export default function App() {
         </div>
       )}
 
-      {mode === 'idle' && !listOpen && (
-        <div className="fabs">
+      </div>
+
+        <div className="fabs" role="group" aria-label="Map actions">
           <button type="button" className="fab" onClick={locateMe} disabled={locating}
             aria-label={locating ? 'Finding your location' : 'Use my location'} aria-busy={locating}>
-            {locating ? '…' : '◎'}
+            {locating ? 'Finding you…' : '◎ Current location'}
           </button>
           <button
             type="button"
             className="fab fab--primary"
             onClick={startPlacing}
+            disabled={mode !== 'idle' || busy}
+            title={mode !== 'idle' ? 'Finish or cancel the current location first' : 'Add a location'}
             aria-label="Add a location"
           >
-            +
+            + Add location
           </button>
         </div>
-      )}
-
-      </div>
 
       {listOpen && (
         <PlaceList places={places} hidden={mode !== 'idle' || selected !== null}
           tags={tagOptions} selectedTags={selectedTags} onTagsChange={(tags) => { setSelectedTags(tags); setSelectedId(null); }}
           loading={placesLoading} error={loadError}
-          onRetry={() => void reload()} onSelect={(place) => setSelectedId(place.id)} />
+          onRetry={() => void reload()} onSelect={selectPlace} />
       )}
 
       {listOpen && notice && <div className="list-notice" role="status">{notice}</div>}

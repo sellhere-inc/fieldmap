@@ -169,6 +169,7 @@ export function MapCanvas({
       element.title = description;
       element.classList.toggle('marker--planned', place.visit_status === 'planned');
       element.classList.toggle('is-selected', place.id === selectedId);
+      element.classList.toggle('is-muted', selectedId !== null && place.id !== selectedId);
 
       const label = element.querySelector('.marker__label');
       if (label && label.textContent !== place.name) label.textContent = place.name;
@@ -242,7 +243,10 @@ export function MapCanvas({
     if (!map || !focus) return;
     hasFitRef.current = true;
     map.jumpTo({ center: [focus.lng, focus.lat], zoom: focus.zoom ?? map.getZoom(),
-      padding: { top: 0, bottom: 0, left: 0, right: 0 } });
+      padding: selectedId
+        ? { top: 0, left: 0, right: window.innerWidth >= 820 ? 440 : 0,
+            bottom: window.innerWidth < 820 ? map.getContainer().clientHeight * 0.55 : 0 }
+        : { top: 0, bottom: 0, left: 0, right: 0 } });
   }, [map, focus?.nonce]);
 
   if (!MAPBOX_TOKEN) {

@@ -75,9 +75,27 @@ export function parseLocationInput(text: string): Coordinates | null {
   throw new Error('This link has no exact coordinates. Open it in Google Maps, then copy the pin’s latitude and longitude.');
 }
 
-export async function resolveLocationInput(text: string): Promise<Coordinates> {
+/** Read a human-readable name carried by a Maps link, never its camera or place ID. */
+export function googleMapsName(text: string): string | undefined {
+  try {
+    const url = googleMapsUrl(text);
+    const segment = url.pathname.match(/\/maps\/(?:place|search)\/([^/]+)/)?.[1];
+    const candidate = (segment ? decodeURIComponent(segment.replace(/\+/g, ' '))
+      : url.searchParams.get('query') ?? url.searchParams.get('q') ?? url.searchParams.get('destination'))?.trim();
+    if (!candidate || candidate.startsWith('@') || /^(?:place_id:|cid:|0x)/i.test(candidate)
+      || /^[+\-\d.,\s]+$/.test(candidate)) return undefined;
+    return candidate;
+  } catch { return undefined; }
+}
+
+export interface ResolvedLocation extends Coordinates { name?: string }
+
+export async function resolveLocationInput(text: string): Promise<ResolvedLocation> {
   const parsed = parseLocationInput(text);
-  if (parsed) return parsed;
+  if (parsed) {
+    const name = googleMapsName(text);
+    return { ...parsed, ...(name ? { name } : {}) };
+  }
   const response = await fetch('/api/resolve-map-link?url=' + encodeURIComponent(googleMapsUrl(text).href), { signal: AbortSignal.timeout(12000) });
   if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) {
     throw new Error('Could not expand this short link. Open it in Google Maps and copy the full link or pin coordinates.');
@@ -85,5 +103,6 @@ export async function resolveLocationInput(text: string): Promise<Coordinates> {
   const data = await response.json();
   const result = typeof data.url === 'string' ? parseLocationInput(data.url) : null;
   if (!result) throw new Error('Open this link in Google Maps and copy the pin coordinates.');
-  return result;
+  const name = googleMapsName(data.url);
+  return { ...result, ...(name ? { name } : {}) };
 }

@@ -1,5 +1,6 @@
 import { LocationInput } from './LocationInput';
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
+import { googleMapsName, googleMapsUrl, resolveLocationInput } from './locationInput';
 import { cleanTags, tagKey } from './tags';
 import {
   cssVars,
@@ -38,6 +39,27 @@ export function PlaceForm({
   onCancel,
   onReposition,
 }: PlaceFormProps) {
+  const latest = useRef({ draft, onChange });
+  latest.current = { draft, onChange };
+  useEffect(() => {
+    if (busy || draft.name.trim() || !draft.google_maps_url.trim()) return;
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      try {
+        let name = googleMapsName(draft.google_maps_url);
+        const url = googleMapsUrl(draft.google_maps_url);
+        if (!name && ['maps.app.goo.gl', 'goo.gl'].includes(url.hostname)) {
+          name = (await resolveLocationInput(url.href)).name;
+        }
+        const current = latest.current;
+        if (!cancelled && name && !current.draft.name.trim()) {
+          current.onChange({ ...current.draft, name });
+        }
+      } catch { /* Optional links can still be saved when a name is unavailable. */ }
+    }, 350);
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, [draft.google_maps_url, draft.name, busy]);
+
   const [tagInput, setTagInput] = useState('');
   const [tagError, setTagError] = useState<string | null>(null);
   const tagListId = useId();
@@ -217,8 +239,8 @@ export function PlaceForm({
           <p className="muted">
             {draft.latitude.toFixed(6)}, {draft.longitude.toFixed(6)}
           </p>
-          <LocationInput disabled={busy} onApply={({ lat, lng }, mapsLink) => onChange({ ...draft, latitude: lat, longitude: lng,
-            google_maps_url: mapsLink ?? draft.google_maps_url })} />
+          <LocationInput disabled={busy} onApply={({ lat, lng, name }, mapsLink) => onChange({ ...draft, latitude: lat, longitude: lng,
+            google_maps_url: mapsLink ?? draft.google_maps_url, name: draft.name.trim() ? draft.name : name ?? draft.name })} />
           <label className="note-label">Google Maps link (optional)
             <input type="text" inputMode="url" autoCapitalize="none" autoCorrect="off" value={draft.google_maps_url} disabled={busy} placeholder="maps.app.goo.gl/… or example.com"
               onChange={(event) => set('google_maps_url', event.target.value)} />

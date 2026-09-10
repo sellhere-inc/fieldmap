@@ -7,7 +7,7 @@ import { pathToFileURL } from 'node:url';
 import handler from '../netlify/functions/resolve-map-link.mjs';
 const dir = await mkdtemp(tmpdir() + '/fieldmap-location-');
 await build({ entryPoints: ['src/locationInput.ts'], outfile: dir + '/parser.mjs', format: 'esm', platform: 'node' });
-const { coordinates, parseLocationInput, savedGoogleMapsLink, openGoogleMapsLink } = await import(pathToFileURL(dir + '/parser.mjs'));
+const { coordinates, parseLocationInput, savedGoogleMapsLink, openGoogleMapsLink, googleMapsName, resolveLocationInput } = await import(pathToFileURL(dir + '/parser.mjs'));
 
 test('coordinates retain zero, negative values and boundary values', () => {
   assert.deepEqual(coordinates('0', '-180'), { lat: 0, lng: -180 });
@@ -68,4 +68,28 @@ test('saved website links accept bare domains and optional www', () => {
   assert.equal(parseLocationInput('maps.app.goo.gl/example'), null);
   assert.throws(() => savedGoogleMapsLink('data:text/html,test'));
   assert.throws(() => savedGoogleMapsLink('not a link'));
+});
+
+
+test('Maps names decode words and Unicode without using coordinates or identifiers as names', () => {
+  assert.equal(googleMapsName('https://www.google.com/maps/place/Green+Valley+Farm/data=!3d9.93!4d76.26'), 'Green Valley Farm');
+  assert.equal(googleMapsName('https://www.google.com/maps/place/' + encodeURIComponent('കഫേ')), 'കഫേ');
+  assert.equal(googleMapsName('https://www.google.com/maps/?q=Green+Valley+Farm'), 'Green Valley Farm');
+  for (const input of ['9.93,76.26', 'https://www.google.com/maps/?q=9.93,76.26',
+    'https://www.google.com/maps/?q=place_id:example', 'https://maps.app.goo.gl/example',
+    'https://www.google.com/maps/@9.93,76.26,15z', 'https://example.com/maps/place/Farm']) {
+    assert.equal(googleMapsName(input), undefined);
+  }
+});
+
+test('resolving full and short links carries the name alongside exact pin coordinates', async () => {
+  const full = 'https://www.google.com/maps/place/Green+Valley+Farm/@1,2,10z/data=!3d9.93!4d76.26';
+  const expected = { lat: 9.93, lng: 76.26, name: 'Green Valley Farm' };
+  assert.deepEqual(await resolveLocationInput(full), expected);
+  assert.deepEqual(await resolveLocationInput('9.93,76.26'), { lat: 9.93, lng: 76.26 });
+  const original = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => Response.json({ url: full });
+    assert.deepEqual(await resolveLocationInput('https://maps.app.goo.gl/example'), expected);
+  } finally { globalThis.fetch = original; }
 });

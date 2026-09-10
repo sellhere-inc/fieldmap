@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { coordinates, googleMapsUrl, resolveLocationInput, type Coordinates } from './locationInput';
+import { coordinates, googleMapsUrl, resolveLocationInput, type ResolvedLocation } from './locationInput';
 
-export function LocationInput({ onApply, disabled = false }: { onApply: (point: Coordinates, mapsLink?: string) => void; disabled?: boolean }) {
+export function LocationInput({ onApply, disabled = false }: { onApply: (point: ResolvedLocation, mapsLink?: string) => void; disabled?: boolean }) {
   const [tab, setTab] = useState<'coordinates' | 'link'>('coordinates');
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
@@ -11,6 +11,8 @@ export function LocationInput({ onApply, disabled = false }: { onApply: (point: 
   const pending = useRef(false);
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  const onApplyRef = useRef(onApply);
+  onApplyRef.current = onApply;
   async function apply() {
     if (pending.current || disabled) return;
     pending.current = true; setBusy(true); setError(null);
@@ -20,7 +22,7 @@ export function LocationInput({ onApply, disabled = false }: { onApply: (point: 
       if (tab === 'link') {
         try { mapsLink = googleMapsUrl(link).href; } catch { /* Copied coordinates have no source link. */ }
       }
-      if (mounted.current) onApply(point, mapsLink);
+      if (mounted.current) onApplyRef.current(point, mapsLink);
     } catch (error) {
       if (mounted.current) setError(error instanceof Error ? error.message : 'Could not read this location.');
     } finally { pending.current = false; if (mounted.current) setBusy(false); }

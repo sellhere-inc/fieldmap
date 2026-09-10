@@ -14,6 +14,7 @@ export function selectPlaces(
 ): FieldPlace[] {
   const search = query.trim().normalize('NFC').toLocaleLowerCase();
   return places.filter((place) =>
+    (search !== '' || Boolean(place.remarks?.trim())) &&
     [place.name, place.remarks ?? '', ...place.tags].some((text) =>
       text.normalize('NFC').toLocaleLowerCase().includes(search))
     && (kind === 'all' || place.kind === kind)
