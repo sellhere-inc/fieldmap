@@ -94,18 +94,28 @@ export function PlaceForm({
 
   return (
     <form
-      className={`sheet ${draft.visit_status === 'planned' ? 'sheet--planned' : ''}`}
+      className={`sheet location-details ${draft.visit_status === 'planned' ? 'sheet--planned' : ''}`}
       style={cssVars({ '--place-color': placeColor(draft) })}
       onSubmit={submit}
     >
       <header className="sheet-head">
-        <h2>{isEditing ? 'Edit location' : 'New location'}</h2>
+        <div><span className="flow-step">{isEditing ? 'YOUR FIELD MAP' : 'STEP 2 OF 2 · DETAILS'}</span><h2>{isEditing ? 'Edit location' : 'Make it yours'}</h2><p className="flow-subtitle">A name, a few notes. Ready for your next visit.</p></div>
         <button type="button" className="icon-btn" onClick={onCancel} aria-label="Cancel">
           ✕
         </button>
       </header>
 
       <div className="sheet-body">
+        <label className="field">
+          <h3>Name</h3>
+          <input
+            value={draft.name}
+            onChange={(e) => set('name', e.target.value)}
+            placeholder={draft.kind === 'farmer' ? 'Farmer’s name' : 'Business name'}
+            required
+            autoFocus
+          />
+        </label>
         <div className="field">
           <h3>Visit status</h3>
           <div className="chip-row" role="group" aria-label="Visit status">
@@ -168,16 +178,7 @@ export function PlaceForm({
           {tagError && <p className="error" role="alert">{tagError}</p>}
         </div>
 
-        <label className="field">
-          <h3>Name</h3>
-          <input
-            value={draft.name}
-            onChange={(e) => set('name', e.target.value)}
-            placeholder={draft.kind === 'farmer' ? 'Farmer’s name' : 'Business name'}
-            required
-            autoFocus
-          />
-        </label>
+
 
         {/* Crops are a farmer-only concern — buyers and warehouses record a
             name and remarks only. */}
@@ -259,7 +260,7 @@ export function PlaceForm({
           Cancel
         </button>
         <button type="submit" className="btn btn--primary" disabled={busy}>
-          {busy ? 'Saving…' : 'Save'}
+          {busy ? 'Saving…' : isEditing ? 'Save changes' : 'Save location'}
         </button>
       </footer>
     </form>

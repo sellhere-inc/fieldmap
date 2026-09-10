@@ -424,8 +424,25 @@ export default function App() {
       {(loadError || notice) && <div className="toast" role="status">{notice ?? loadError}</div>}
 
       {mode === 'placing' && (
-        <div className="banner">
-          <h2>Choose a location</h2>
+        <section className="banner location-flow" aria-labelledby="location-heading">
+          <header className="location-flow-head">
+            <div className="location-flow-icon" aria-hidden="true">
+              <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>
+            </div>
+            <button type="button" className="icon-btn" onClick={cancelEditing} aria-label="Cancel adding location">✕</button>
+          </header>
+          <div className="location-flow-intro">
+            <span className="flow-step">STEP 1 OF 2 · LOCATION</span>
+            <h2 id="location-heading">Choose a location</h2>
+            <p>A place worth remembering. Start with a pin.</p>
+          </div>
+          <div className="location-flow-body">
+          <button type="button" className="location-current" onClick={locateMe} disabled={locating}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/></svg>
+            <span><strong>{locating ? 'Finding you…' : 'Use current location'}</strong><small>Pin where you are right now</small></span>
+            <span aria-hidden="true">›</span>
+          </button>
+          <div className="location-divider"><span>or add a place</span></div>
           <LocationInput onApply={({ lat, lng, name }, mapsLink) => {
             setDraft((current) => ({ ...(current ?? blankDraft(lat, lng)), latitude: lat, longitude: lng,
               google_maps_url: mapsLink ?? current?.google_maps_url ?? '',
@@ -433,23 +450,20 @@ export default function App() {
             setFocus((current) => ({ lat, lng, zoom: 16, nonce: (current?.nonce ?? 0) + 1 }));
             setNotice('Location set. Review the pin, then continue.');
           }} />
-          <p>
-            {draft
-              ? 'Drag the pin to fine-tune, then continue.'
-              : 'Or long-press the map to drop a pin, or use your current location.'}
-          </p>
-          <div className="banner-actions">
-            <button type="button" className="btn btn--ghost" onClick={cancelEditing}>
-              Cancel
-            </button>
-            <button type="button" className="btn" onClick={locateMe} disabled={locating}>
-              {locating ? 'Finding you…' : 'Use my location'}
-            </button>
-            <button type="button" className="btn btn--primary" onClick={openForm} disabled={!draft}>
-              Continue
-            </button>
+          <div className={`location-preview ${draft ? 'is-ready' : ''}`} role="status">
+            <span className="location-preview-symbol" aria-hidden="true">{draft ? '✓' : '＋'}</span>
+            <div><strong>{draft ? draft.name || 'Pin is ready' : 'Prefer to use the map?'}</strong>
+              <p>{draft ? `${draft.latitude.toFixed(5)}, ${draft.longitude.toFixed(5)} · Drag to adjust.` : 'Touch and hold anywhere on the map to drop a pin.'}</p>
+            </div>
           </div>
-        </div>
+          </div>
+          <footer className="location-flow-footer">
+            <button type="button" className="btn btn--primary" onClick={openForm} disabled={!draft}>
+              Continue <span aria-hidden="true">→</span>
+            </button>
+            <p>{draft ? 'Next, add a name and a few details.' : 'Choose a location to continue.'}</p>
+          </footer>
+        </section>
       )}
 
       </div>
