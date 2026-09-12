@@ -1,0 +1,11 @@
+0000000000000000000000000000000000000000 afc7b460e2c3b6ea9ac5538fa7df11719f578fb1 ronsinoy <ron_b231209me@nitc.ac.in> 1786657223 +0530	commit (initial): initial
+afc7b460e2c3b6ea9ac5538fa7df11719f578fb1 26c8e152007e9a8d320b37020e50da368b8650e8 ronsinoy <ron_b231209me@nitc.ac.in> 1786658018 +0530	commit: redesigned map pins
+26c8e152007e9a8d320b37020e50da368b8650e8 20706494b5550096576674aa9dc696d3d8d5754a ronsinoy <ron_b231209me@nitc.ac.in> 1788683162 +0530	commit: initial commit
+20706494b5550096576674aa9dc696d3d8d5754a 20706494b5550096576674aa9dc696d3d8d5754a ronsinoy <ron_b231209me@nitc.ac.in> 1788683223 +0530	Branch: renamed refs/heads/master to refs/heads/mian
+20706494b5550096576674aa9dc696d3d8d5754a 20706494b5550096576674aa9dc696d3d8d5754a ronsinoy <ron_b231209me@nitc.ac.in> 1788683228 +0530	Branch: renamed refs/heads/mian to refs/heads/main
+20706494b5550096576674aa9dc696d3d8d5754a 67665d45cd39cdc2b7f0b06457487ca2bd13a3ad ronsinoy <ron_b231209me@nitc.ac.in> 1788685637 +0530	commit: cosmetic changes
+67665d45cd39cdc2b7f0b06457487ca2bd13a3ad 2ddfc38d628c4e8e8dc15b09a442c2346616c779 ronsinoy <ron_b231209me@nitc.ac.in> 1788686248 +0530	commit: added curr loc marker
+2ddfc38d628c4e8e8dc15b09a442c2346616c779 39647bfe39bb4ecb39972c24de58c14c1591cd79 ronsinoy <ron_b231209me@nitc.ac.in> 1788849097 +0530	commit: added multiple features
+39647bfe39bb4ecb39972c24de58c14c1591cd79 69c02b3d6395cdc5ef893295bdf4b06b3db7dc24 ronsinoy <ron_b231209me@nitc.ac.in> 1789026412 +0530	commit: minor design changes
+69c02b3d6395cdc5ef893295bdf4b06b3db7dc24 454fd28cdd1bdc64123ec5c3b25532d36b332c1f ronsinoy <ron_b231209me@nitc.ac.in> 1789026789 +0530	commit: minor design changes
+454fd28cdd1bdc64123ec5c3b25532d36b332c1f 4eba5692ce75157ecf1374a558b698ecdf19fd73 ronsinoy <ron_b231209me@nitc.ac.in> 1789036130 +0530	commit: minor cosmetic changes

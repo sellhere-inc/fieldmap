@@ -12,6 +12,7 @@ import { TagFilter } from './TagFilter';
 import { cleanTags, matchesTags } from './tags';
 import { fieldErrorMessage } from './errors';
 import { requestLocation, locationErrorMessage, type UserLocation } from './location';
+import { hasLocal, readLocal, writeLocal } from './localCache';
 import {
   createPlace,
   cssVars,
@@ -30,6 +31,22 @@ import {
 
 /** idle → tap markers. placing → drop or drag the pin. form → fill in details. */
 type Mode = 'idle' | 'placing' | 'form';
+type Workspace = 'map' | 'contacts' | 'notes';
+type FieldNotesSettings = {
+  query: string;
+  kind: PlaceKind | 'all';
+  status: 'met' | 'planned' | 'all';
+  sort: 'tag' | 'status' | 'name';
+};
+
+const defaultFieldNotesSettings: FieldNotesSettings = { query: '', kind: 'all', status: 'all', sort: 'tag' };
+
+function initialWorkspace(): Workspace {
+  if (window.location.hash === '#contacts') return 'contacts';
+  if (window.location.hash === '#notes') return 'notes';
+  if (window.location.hash === '#map') return 'map';
+  return readLocal<Workspace>('last-workspace', 'map');
+}
 
 function blankDraft(lat: number, lng: number): PlaceDraft {
   return { kind: 'trader', visit_status: 'planned', name: '', tags: [], remarks: '', latitude: lat, longitude: lng, google_maps_url: '', crops: [] };
@@ -58,13 +75,19 @@ export default function App() {
 
   const [places, setPlaces] = useState<FieldPlace[]>([]);
   const [tagSuggestions, setTagSuggestions] = useState<string[]>([]);
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>(() => readLocal('selected-tags', []));
   const [placesLoading, setPlacesLoading] = useState(true);
-  const [listOpen, setListOpen] = useState(window.location.hash === '#contacts');
-  const [notesOpen, setNotesOpen] = useState(window.location.hash === '#notes');
+  const workspace = initialWorkspace();
+  const [listOpen, setListOpen] = useState(workspace === 'contacts');
+  const [notesOpen, setNotesOpen] = useState(workspace === 'notes');
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [visibleKinds, setVisibleKinds] = useState<Set<PlaceKind>>(new Set(PLACE_KINDS));
+  const [visibleKinds, setVisibleKinds] = useState<Set<PlaceKind>>(() => {
+    const saved = readLocal<PlaceKind[]>('visible-kinds', PLACE_KINDS);
+    return new Set(saved.filter((kind): kind is PlaceKind => PLACE_KINDS.includes(kind)));
+  });
+  const [fieldNotesSettings, setFieldNotesSettings] = useState<FieldNotesSettings>(() =>
+    readLocal('field-notes-settings', defaultFieldNotesSettings));
   const [styleName, setStyleName] = useState<MapStyleName>(() => {
     try { return window.localStorage.getItem('fieldmap-map-style') === 'satellite' ? 'satellite' : 'dark'; }
     catch { return 'dark'; }
@@ -90,6 +113,33 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  const cacheUserId = session?.user.id;
+
+  // Restore data before the network refresh, so the map and field notes are
+  // still useful during a weak connection or while offline.
+  useEffect(() => {
+    if (!cacheUserId) return;
+    const cachedPlaces = readLocal<FieldPlace[]>('places', [], cacheUserId);
+    const cachedTags = readLocal<string[]>('tags', [], cacheUserId);
+    const hasCachedPlaces = hasLocal('places', cacheUserId);
+    setPlaces(cachedPlaces);
+    setTagSuggestions(cachedTags);
+    setPlacesLoading(!hasCachedPlaces);
+    setLoadError(null);
+    const lastPlaceId = readLocal<string | null>('last-opened-place', null, cacheUserId);
+    setSelectedId(lastPlaceId);
+  }, [cacheUserId]);
+
+  useEffect(() => { writeLocal('selected-tags', selectedTags); }, [selectedTags]);
+  useEffect(() => { writeLocal('visible-kinds', [...visibleKinds]); }, [visibleKinds]);
+  useEffect(() => { writeLocal('field-notes-settings', fieldNotesSettings); }, [fieldNotesSettings]);
+  useEffect(() => {
+    writeLocal('last-workspace', notesOpen ? 'notes' : listOpen ? 'contacts' : 'map');
+  }, [listOpen, notesOpen]);
+  useEffect(() => {
+    if (cacheUserId && selectedId) writeLocal('last-opened-place', selectedId, cacheUserId);
+  }, [cacheUserId, selectedId]);
 
   // Hash navigation gives the phone list its own page and browser Back support.
   useEffect(() => {
@@ -142,15 +192,23 @@ export default function App() {
   const reload = useCallback(async () => {
     setPlacesLoading(true);
     try {
-      setPlaces(await fetchPlaces());
-      setTagSuggestions(await fetchTagNames());
+      const nextPlaces = await fetchPlaces();
+      setPlaces(nextPlaces);
+      if (cacheUserId) {
+        writeLocal('places', nextPlaces, cacheUserId);
+      }
+      const nextTags = await fetchTagNames();
+      setTagSuggestions(nextTags);
+      if (cacheUserId) {
+        writeLocal('tags', nextTags, cacheUserId);
+      }
       setLoadError(null);
     } catch (error) {
       setLoadError(fieldErrorMessage(error, 'Could not load locations.'));
     } finally {
       setPlacesLoading(false);
     }
-  }, []);
+  }, [cacheUserId]);
 
   useEffect(() => {
     if (isMember) void reload();
@@ -375,7 +433,7 @@ export default function App() {
           <Plus size={23} weight="bold" aria-hidden="true" /><span>Add place</span>
         </button>
       </nav>
-      {isMember && <GeneralNotes key={session.user.id} hidden={!notesOpen} />}
+      {isMember && <GeneralNotes key={session.user.id} hidden={!notesOpen} userId={session.user.id} />}
       <div className="map-workspace">
       <MapCanvas
         places={taggedPlaces}
@@ -500,6 +558,7 @@ export default function App() {
       {listOpen && (
         <PlaceList places={places} hidden={mode !== 'idle' || selected !== null}
           tags={tagOptions} selectedTags={selectedTags} onTagsChange={(tags) => { setSelectedTags(tags); setSelectedId(null); }}
+          settings={fieldNotesSettings} onSettingsChange={setFieldNotesSettings}
           loading={placesLoading} error={loadError}
           onRetry={() => void reload()} onSelect={selectPlace} />
       )}

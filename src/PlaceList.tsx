@@ -1,5 +1,5 @@
 import { ArrowLeft, CaretRight, MagnifyingGlass } from '@phosphor-icons/react';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { TagFilter } from './TagFilter';
 import { matchesTags } from './tags';
 import {
@@ -8,6 +8,12 @@ import {
 } from './supabase';
 
 export type ListSort = 'tag' | 'status' | 'name';
+export type FieldNotesSettings = {
+  query: string;
+  kind: PlaceKind | 'all';
+  status: VisitStatus | 'all';
+  sort: ListSort;
+};
 
 export function selectPlaces(
   places: FieldPlace[], query: string, kind: PlaceKind | 'all',
@@ -36,6 +42,8 @@ interface PlaceListProps {
   tags: string[];
   selectedTags: string[];
   onTagsChange: (tags: string[]) => void;
+  settings: FieldNotesSettings;
+  onSettingsChange: (settings: FieldNotesSettings) => void;
   hidden: boolean;
   loading: boolean;
   error: string | null;
@@ -43,11 +51,9 @@ interface PlaceListProps {
   onRetry: () => void;
 }
 
-export function PlaceList({ places, tags, selectedTags, onTagsChange, hidden, loading, error, onSelect, onRetry }: PlaceListProps) {
-  const [query, setQuery] = useState('');
-  const [kind, setKind] = useState<PlaceKind | 'all'>('all');
-  const [status, setStatus] = useState<VisitStatus | 'all'>('all');
-  const [sort, setSort] = useState<ListSort>('tag');
+export function PlaceList({ places, tags, selectedTags, onTagsChange, settings, onSettingsChange, hidden, loading, error, onSelect, onRetry }: PlaceListProps) {
+  const { query, kind, status, sort } = settings;
+  const updateSettings = (change: Partial<FieldNotesSettings>) => onSettingsChange({ ...settings, ...change });
   const results = useMemo(() => selectPlaces(places, query, kind, status, sort, selectedTags),
     [places, query, kind, status, sort, selectedTags]);
 
@@ -65,20 +71,20 @@ export function PlaceList({ places, tags, selectedTags, onTagsChange, hidden, lo
           <TagFilter tags={tags} selected={selectedTags} onChange={onTagsChange} />
           <label className="list-search-label">
             <span className="sr-only">Search names, remarks, and tags</span><MagnifyingGlass size={20} aria-hidden="true" />
-            <input type="search" autoFocus value={query} onChange={(event) => setQuery(event.target.value)}
+            <input type="search" autoFocus value={query} onChange={(event) => updateSettings({ query: event.target.value })}
               placeholder="Name, remarks, or tag" />
           </label>
           <div className="list-filter-row">
             <label>
               Contact tag
-              <select aria-label="Contact tag" value={kind} onChange={(event) => setKind(event.target.value as PlaceKind | 'all')}>
+              <select aria-label="Contact tag" value={kind} onChange={(event) => updateSettings({ kind: event.target.value as PlaceKind | 'all' })}>
                 <option value="all">All types</option>
                 {PLACE_KINDS.map((value) => <option key={value} value={value}>{KIND_LABEL[value]}</option>)}
               </select>
             </label>
             <label>
               Visit tag
-              <select aria-label="Visit tag" value={status} onChange={(event) => setStatus(event.target.value as VisitStatus | 'all')}>
+              <select aria-label="Visit tag" value={status} onChange={(event) => updateSettings({ status: event.target.value as VisitStatus | 'all' })}>
                 <option value="all">All visits</option>
                 <option value="planned">Yet to meet</option>
                 <option value="met">Met</option>
@@ -87,7 +93,7 @@ export function PlaceList({ places, tags, selectedTags, onTagsChange, hidden, lo
           </div>
           <label>
             Sort by
-            <select aria-label="Sort by" value={sort} onChange={(event) => setSort(event.target.value as ListSort)}>
+            <select aria-label="Sort by" value={sort} onChange={(event) => updateSettings({ sort: event.target.value as ListSort })}>
               <option value="tag">Contact tag</option>
               <option value="status">Visit tag — planned first</option>
               <option value="name">Name — A to Z</option>

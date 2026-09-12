@@ -4,18 +4,36 @@ import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { supabase } from './supabase';
 import { fieldErrorMessage } from './errors';
+import { hasLocal, readLocal, writeLocal } from './localCache';
 
 type Note = { id: string; title: string; content: string; pinned: boolean; updated_at: string };
 type Draft = Pick<Note, 'id' | 'title' | 'content' | 'pinned'>;
+type NotesCache = { notes: Note[]; query: string; draft: Draft | null; original: string; lastOpenedId: string | null };
+const emptyCache: NotesCache = { notes: [], query: '', draft: null, original: '', lastOpenedId: null };
 
-export function GeneralNotes({ hidden }: { hidden: boolean }) {
-  const [notes, setNotes] = useState<Note[]>([]);
-  const [loading, setLoading] = useState(true);
+function cachedNotes(userId: string): NotesCache {
+  return readLocal<NotesCache>('general-notes', emptyCache, userId);
+}
+
+function restoredDraft(cache: NotesCache): Draft | null {
+  return cache.draft ?? (cache.lastOpenedId
+    ? cache.notes.find((note) => note.id === cache.lastOpenedId)
+    : null) ?? null;
+}
+
+export function GeneralNotes({ hidden, userId }: { hidden: boolean; userId: string }) {
+  const [notes, setNotes] = useState<Note[]>(() => cachedNotes(userId).notes);
+  const [loading, setLoading] = useState(() => !hasLocal('general-notes', userId));
   const [error, setError] = useState<string | null>(null);
-  const [query, setQuery] = useState('');
-  const [draft, setDraft] = useState<Draft | null>(null);
-  const [original, setOriginal] = useState('');
-  const [preview, setPreview] = useState(false);
+  const [query, setQuery] = useState(() => cachedNotes(userId).query);
+  const [draft, setDraft] = useState<Draft | null>(() => restoredDraft(cachedNotes(userId)));
+  const [original, setOriginal] = useState(() => {
+    const cache = cachedNotes(userId);
+    const restored = restoredDraft(cache);
+    return cache.draft ? cache.original : restored ? JSON.stringify(restored) : '';
+  });
+  const [lastOpenedId, setLastOpenedId] = useState<string | null>(() => cachedNotes(userId).lastOpenedId);
+  const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const pending = useRef(false);
   const dirty = draft !== null && JSON.stringify(draft) !== original;
@@ -30,6 +48,9 @@ export function GeneralNotes({ hidden }: { hidden: boolean }) {
   }, []);
   useEffect(() => { void reload(); }, [reload]);
   useEffect(() => {
+    writeLocal('general-notes', { notes, query, draft, original, lastOpenedId }, userId);
+  }, [notes, query, draft, original, lastOpenedId, userId]);
+  useEffect(() => {
     if (!dirty) return;
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
     window.addEventListener('beforeunload', warn);
@@ -39,11 +60,11 @@ export function GeneralNotes({ hidden }: { hidden: boolean }) {
   function open(note?: Note) {
     const next = note ? { id: note.id, title: note.title, content: note.content, pinned: note.pinned }
       : { id: crypto.randomUUID(), title: '', content: '', pinned: false };
-    setDraft(next); setOriginal(JSON.stringify(next)); setPreview(false); setError(null);
+    setDraft(next); setOriginal(JSON.stringify(next)); setLastOpenedId(next.id); setEditing(false); setError(null);
   }
   function close() {
     if (pending.current || (dirty && !window.confirm('Discard unsaved changes to this note?'))) return;
-    setDraft(null); setError(null);
+    setDraft(null); setEditing(false); setError(null);
   }
   async function save() {
     if (!draft || pending.current) return;
@@ -54,7 +75,10 @@ export function GeneralNotes({ hidden }: { hidden: boolean }) {
         .upsert({ ...draft, title: draft.title.trim() }).select('id,title,content,pinned,updated_at').single();
       if (error) throw error;
       setNotes((current) => [data, ...current.filter((note) => note.id !== data.id)]);
-      setDraft(null);
+      setDraft({ id: data.id, title: data.title, content: data.content, pinned: data.pinned });
+      setOriginal(JSON.stringify({ id: data.id, title: data.title, content: data.content, pinned: data.pinned }));
+      setLastOpenedId(data.id);
+      setEditing(false);
     } catch (error) { setError(fieldErrorMessage(error, 'Could not save note. Your changes are still here.')); }
     finally { pending.current = false; setBusy(false); }
   }
@@ -64,7 +88,9 @@ export function GeneralNotes({ hidden }: { hidden: boolean }) {
     try {
       const { data, error } = await supabase.from('field_general_notes').delete().eq('id', draft.id).select('id').single();
       if (error) throw error;
-      setNotes((current) => current.filter((note) => note.id !== data.id)); setDraft(null);
+      setNotes((current) => current.filter((note) => note.id !== data.id));
+      setDraft(null); setEditing(false);
+      if (lastOpenedId === data.id) setLastOpenedId(null);
     } catch (error) { setError(fieldErrorMessage(error, 'Could not delete note.')); }
     finally { pending.current = false; setBusy(false); }
   }
@@ -90,28 +116,28 @@ export function GeneralNotes({ hidden }: { hidden: boolean }) {
       {draft ? <section className="note-editor" aria-label="Note editor">
         <div className="note-editor-toolbar">
           <button className="btn btn--ghost" disabled={busy} onClick={close}><ArrowLeft size={17} aria-hidden="true" /> Back to notes</button>
-          <span className="muted" role="status">{busy ? 'Saving changes…' : dirty ? 'Unsaved changes' : 'Markdown note'}</span>
+          <span className="muted" role="status">{busy ? 'Saving changes…' : dirty ? 'Unsaved changes' : editing ? 'Editing Markdown' : 'Preview'}</span>
         </div>
-        <label className="note-label">Title<input autoFocus placeholder="Untitled note" value={draft.title} disabled={busy}
-          onChange={(event) => setDraft({ ...draft, title: event.target.value })} /></label>
+        {editing && <label className="note-label">Title<input autoFocus placeholder="Untitled note" value={draft.title} disabled={busy}
+          onChange={(event) => setDraft({ ...draft, title: event.target.value })} /></label>}
         <div className="note-editor-toolbar">
-          <div className="note-view-toggle" role="group" aria-label="Editor view">
-            <button className="btn" aria-pressed={!preview} onClick={() => setPreview(false)}>Write</button>
-            <button className="btn" aria-pressed={preview} onClick={() => setPreview(true)}>Preview</button>
+          <div className="note-view-toggle" role="group" aria-label="Note view">
+            <button className="btn" aria-pressed={!editing} disabled={busy || !editing} onClick={() => setEditing(false)}>Preview</button>
+            <button className="btn" aria-pressed={editing} disabled={busy} onClick={() => setEditing(true)}>Edit Markdown</button>
           </div>
-          <button className="btn" aria-pressed={draft.pinned} disabled={busy} onClick={() => setDraft({ ...draft, pinned: !draft.pinned })}>{draft.pinned ? 'Pinned' : 'Pin note'}</button>
+          {editing && <button className="btn" aria-pressed={draft.pinned} disabled={busy} onClick={() => setDraft({ ...draft, pinned: !draft.pinned })}>{draft.pinned ? 'Pinned' : 'Pin note'}</button>}
         </div>
-        {preview ? <div className="markdown-body note-preview"><Markdown remarkPlugins={[remarkGfm]}>{draft.content || '*Nothing to preview yet.*'}</Markdown></div>
-          : <label className="note-label">Markdown<textarea className="markdown-input" rows={14} value={draft.content} disabled={busy}
+        {editing ? <label className="note-label">Markdown<textarea className="markdown-input" rows={14} value={draft.content} disabled={busy}
             placeholder={'# Heading\n\nWrite a note…\n\n- [ ] A task\n- A list item\n\n**Bold** and *italic*'}
-            onChange={(event) => setDraft({ ...draft, content: event.target.value })} /></label>}
-        <p className="muted">Use # headings, **bold**, - lists, and - [ ] checklists.</p>
+            onChange={(event) => setDraft({ ...draft, content: event.target.value })} /></label>
+          : <div className="markdown-body note-preview">{draft.title && <h1>{draft.title}</h1>}<Markdown remarkPlugins={[remarkGfm]}>{draft.content || '*Nothing to preview yet.*'}</Markdown></div>}
+        {editing && <p className="muted">Use # headings, **bold**, - lists, and - [ ] checklists.</p>}
         <footer className="note-editor-toolbar">
           <div className="note-editor-toolbar">
             {notes.some((note) => note.id === draft.id) && <button className="btn btn--danger" disabled={busy} onClick={() => void remove()}><Trash size={17} aria-hidden="true" /> Delete</button>}
             <button className="btn" onClick={download}><DownloadSimple size={17} aria-hidden="true" /> Download</button>
           </div>
-          <button className="btn btn--primary" disabled={busy || !dirty} onClick={() => void save()}><Check size={17} aria-hidden="true" /> {busy ? 'Saving…' : 'Save note'}</button>
+          {editing && <button className="btn btn--primary" disabled={busy || !dirty} onClick={() => void save()}><Check size={17} aria-hidden="true" /> {busy ? 'Saving…' : 'Save note'}</button>}
         </footer>
       </section> : <>
         <label className="note-label">Search notes<input type="search" placeholder="Search titles and note text" value={query} onChange={(event) => setQuery(event.target.value)} /></label>
@@ -120,7 +146,7 @@ export function GeneralNotes({ hidden }: { hidden: boolean }) {
         <div className="general-notes-grid">{results.map((note) => <button key={note.id} className="general-note-card" onClick={() => open(note)}>
           {note.pinned && <span className="general-note-pin"><PushPin size={14} weight="fill" aria-hidden="true" /> Pinned</span>}
           <h2>{note.title || 'Untitled note'}</h2>
-          <p className="general-note-excerpt">{note.content.slice(0, 350) || 'Empty note'}</p>
+          <div className="markdown-body general-note-excerpt"><Markdown remarkPlugins={[remarkGfm]}>{note.content || '*Empty note*'}</Markdown></div>
           <time dateTime={note.updated_at}>{new Date(note.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</time>
         </button>)}</div>
       </>}
